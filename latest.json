@@ -1,0 +1,10 @@
+{
+  "version": "1.0.0",
+  "notes": "Initial 1.0.0 for Mac, Linux, and Windows.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.0.0",
+  "downloads": {
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.0/BigUwidget-1.0.0-Mac.zip",
+    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.0/BigUwidget-1.0.0-Linux.zip",
+    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.0/BigUwidget-1.0.0-Windows.zip"
+  }
+}

@@ -1,10 +1,10 @@
 {
-  "version": "1.0.6",
-  "notes": "Linux & Windows window fix: centered spawn, dynamic window auto-fit height (no invisible click-shielding overlays), Track A RAM squeeze, and Settings version footer.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.0.6",
+  "version": "1.0.7",
+  "notes": "Full Track B native Qt/PySide meter for Linux (~40 MB RAM), fixed X/Twitter passkey login hang by bypassing unsupported WebAuthn prompts, dynamic window auto-fit height, and Settings version display.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.0.7",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.6/BigUwidget-1.0.6-Mac.zip",
-    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.6/BigUwidget-1.0.6-Linux.zip",
-    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.6/BigUwidget-1.0.6-Windows.zip"
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.7/BigUwidget-1.0.7-Mac.zip",
+    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.7/BigUwidget-1.0.7-Linux.zip",
+    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.7/BigUwidget-1.0.7-Windows.zip"
   }
 }

@@ -18,6 +18,11 @@ See how much of your weekly (and 5-hour) allowance you have used for:
 
 Unofficial desktop dashboard. Not affiliated with Google, xAI, OpenAI, Anthropic, or Cursor. Quota endpoints can change.
 
+
+### Demo
+
+https://github.com/LondonVista/biguwidget/raw/main/docs/biguwidget.mp4
+
 ## Download
 
 Latest release: **[v1.0.1](https://github.com/LondonVista/biguwidget/releases/latest)**

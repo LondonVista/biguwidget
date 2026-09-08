@@ -20,11 +20,11 @@ import urllib.error
 import ssl
 
 # Version & Config
-APP_VERSION = "1.0.6"
+APP_VERSION = "1.0.7"
 DONATE_URL = "https://ko-fi.com/london_vista"
 CONFIG_DIR = Path.home() / ".config" / "biguwidget"
 STATE_FILE = CONFIG_DIR / "state.json"
-USER_AGENT = "BigUwidget/1.0.6 (Linux; x86_64)"
+USER_AGENT = "BigUwidget/1.0.7 (Linux; x86_64)"
 
 # Dynamic Qt Import: PySide6 -> PyQt6 -> PyQt5
 QT_LIB = None

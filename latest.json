@@ -1,10 +1,10 @@
 {
-  "version": "1.0.7",
-  "notes": "Full Track B native Qt/PySide meter for Linux (~40 MB RAM), fixed X/Twitter passkey login hang by bypassing unsupported WebAuthn prompts, dynamic window auto-fit height, and Settings version display.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.0.7",
+  "version": "1.0.8",
+  "notes": "Added Open in System Browser option for hardware Passkey login, Ctrl+V and right-click Paste context menu in login window, full Track B native Qt meter for Linux (~40 MB RAM), and version 1.0.8 updates across all platforms.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.0.8",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.7/BigUwidget-1.0.7-Mac.zip",
-    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.7/BigUwidget-1.0.7-Linux.zip",
-    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.7/BigUwidget-1.0.7-Windows.zip"
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.8/BigUwidget-1.0.8-Mac.zip",
+    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.8/BigUwidget-1.0.8-Linux.zip",
+    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.8/BigUwidget-1.0.8-Windows.zip"
   }
 }

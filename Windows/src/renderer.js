@@ -41,7 +41,7 @@ function fmtPct(n) {
   return r === Math.round(r) ? String(Math.round(r)) : r.toFixed(1);
 }
 
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.0.3", updatePolicy: "prompt", update: null };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.0.4", updatePolicy: "prompt", update: null };
 let showSettings = false;
 const collapsed = new Set();
 
@@ -69,7 +69,7 @@ function render() {
   html += `<div class="card drag chrome">
     <div class="row">
       <div class="brand">BigUwidget</div>
-      <div class="ver">${state.version || "1.0.3"}</div>
+      <div class="ver">${state.version || "1.0.4"}</div>
       <div class="space"></div>
       <button class="btn no-drag" data-act="settings" title="Settings">⚙</button>
       <button class="btn no-drag" data-act="refresh" title="Refresh">↻</button>

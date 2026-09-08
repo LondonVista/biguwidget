@@ -41,7 +41,7 @@ function fmtPct(n) {
   return r === Math.round(r) ? String(Math.round(r)) : r.toFixed(1);
 }
 
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.0.4", updatePolicy: "prompt", update: null };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.0.5", updatePolicy: "prompt", update: null };
 let showSettings = false;
 const collapsed = new Set();
 
@@ -69,7 +69,7 @@ function render() {
   html += `<div class="card drag chrome">
     <div class="row">
       <div class="brand">BigUwidget</div>
-      <div class="ver">${state.version || "1.0.4"}</div>
+      <div class="ver">${state.version || "1.0.5"}</div>
       <div class="space"></div>
       <button class="btn no-drag" data-act="settings" title="Settings">⚙</button>
       <button class="btn no-drag" data-act="refresh" title="Refresh">↻</button>
@@ -110,6 +110,7 @@ function render() {
       </div>`;
     html += `<div class="sfoot">
       <button class="link" data-act="donate">Donate</button>
+      <span class="sver">v${state.version || "1.0.5"}</span>
       <button class="done" data-act="settings">Done</button>
     </div></div>`;
   }
@@ -205,7 +206,16 @@ async function boot() {
     state = s;
     render();
   });
-  setInterval(render, 20000);
+  // Lightweight 60s ticker for relative time labels without rebuilding the DOM
+  setInterval(() => {
+    document.querySelectorAll(".ago[data-id]").forEach((el) => {
+      const id = el.getAttribute("data-id");
+      const snap = state.snapshots && state.snapshots[id];
+      if (snap && snap.fetchedAt) {
+        el.textContent = ago(snap.fetchedAt);
+      }
+    });
+  }, 60000);
 }
 
 boot();

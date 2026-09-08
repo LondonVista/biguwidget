@@ -2,16 +2,17 @@
 
 Copy **this folder** onto a Linux machine. Do not copy `electron/` or `Windows/`.
 
-Needs [Node.js 20+](https://nodejs.org/).
+BigUwidget on Linux now offers **Track B: Native Qt / PySide** with an ultra-low memory footprint (~35–45 MB RSS vs ~530 MB on Electron).
 
-## Run
+## Quick Start
 
 ```bash
 chmod +x Start.sh
 ./Start.sh
 ```
 
-First run downloads Electron (~150–200 MB) for Linux. After that, `./Start.sh` or `npm start`.
+- **Track B (Default)**: Automatically runs the native Qt meter via Python 3 + PySide6 (~40 MB RAM).
+- **Electron (Fallback)**: Run `./Start.sh --electron` or `npm start` if you prefer the Electron shell.
 
 ## Installer (AppImage + .deb)
 

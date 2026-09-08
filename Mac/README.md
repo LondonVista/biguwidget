@@ -1,4 +1,4 @@
-# BigUwidget 1.0.9 — Mac
+# BigUwidget 1.1.0 — macOS
 
 This is the **native macOS** widget (not Electron). Copy this folder onto a Mac.
 

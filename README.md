@@ -1,12 +1,12 @@
-# BigUwidget 1.0.0
+# BigUwidget 1.0.1
 
 Floating desktop quota dashboard for Grok, Cursor, Antigravity, and ChatGPT.
 
 ## Downloads
 
-- [Mac](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.0.0-Mac.zip)
-- [Linux](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.0.0-Linux.zip)
-- [Windows](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.0.0-Windows.zip)
+- [Mac](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.0.1-Mac.zip)
+- [Linux](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.0.1-Linux.zip)
+- [Windows](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.0.1-Windows.zip)
 
 Apps check this repo’s Releases for updates. In Settings choose **Prompt** (ask first), **Auto** (download), or **Off**.
 

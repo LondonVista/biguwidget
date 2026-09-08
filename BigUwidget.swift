@@ -7,7 +7,7 @@ import WebKit
 enum BigUwidgetConfig {
     /// Ko-fi / GitHub Sponsors / PayPal. Donate is hidden if this is nil.
     static let donateURL = URL(string: "https://ko-fi.com/london_vista")
-    static let appVersion = "1.0.4"
+    static let appVersion = "1.0.5"
     static let updateFeedURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest/download/latest.json")
     static let githubReleasesURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest")
     static let githubAPIURL = URL(string: "https://api.github.com/repos/LondonVista/biguwidget/releases/latest")
@@ -7087,6 +7087,10 @@ struct WidgetSettingsView: View {
                     .buttonStyle(.plain)
                     .help("Support BigUwidget")
                 }
+                Spacer()
+                Text("v\(BigUwidgetConfig.appVersion)")
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Color.white.opacity(0.38))
                 Spacer()
                 Button(action: onClose) {
                     Text("Done")

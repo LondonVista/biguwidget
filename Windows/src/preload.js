@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("bigu", {
-  version: "1.0.4",
+  version: "1.0.5",
   fetchAll: () => ipcRenderer.invoke("fetch-all"),
   fetchOne: (id) => ipcRenderer.invoke("fetch-one", id),
   login: (id) => ipcRenderer.invoke("login", id),

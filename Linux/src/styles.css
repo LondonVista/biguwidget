@@ -102,6 +102,7 @@ html, body {
 }
 .tog.on { background: rgba(50,215,75,0.2); color: var(--green); }
 .sfoot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+.sver { font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; opacity: 0.45; font-weight: 500; }
 .link { background: none; border: none; color: #ff8b82; cursor: pointer; font-weight: 600; font-size: 11px; }
 .update { border-color: rgba(36, 193, 224, 0.45); }
 .utitle { font-size: 12px; font-weight: 700; color: var(--cyan); }

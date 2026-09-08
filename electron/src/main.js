@@ -1,4 +1,19 @@
 const { app, BrowserWindow, ipcMain, shell } = require("electron");
+
+// Track A: Chromium RAM Squeeze
+app.commandLine.appendSwitch("disable-gpu");
+app.commandLine.appendSwitch("disable-software-rasterizer");
+app.commandLine.appendSwitch("renderer-process-limit", "1");
+app.commandLine.appendSwitch("disable-features", "SpareRendererForSitePerProcess,CalculateNativeWinOcclusion");
+app.commandLine.appendSwitch("js-flags", "--max-old-space-size=96");
+app.commandLine.appendSwitch("disable-background-networking");
+app.commandLine.appendSwitch("disable-component-update");
+app.commandLine.appendSwitch("disable-domain-reliability");
+app.commandLine.appendSwitch("disable-sync");
+if (process.platform === "linux") {
+  app.commandLine.appendSwitch("no-zygote");
+}
+
 const path = require("path");
 const fs = require("fs");
 const fetchers = require("./fetchers");
@@ -139,15 +154,21 @@ function openLogin(id) {
         partition: "persist:bigu",
         contextIsolation: true,
         nodeIntegration: false,
+        spellcheck: false,
+        devTools: false,
       },
     });
     loginWin.loadFile(path.join(__dirname, "agy-login.html"));
     loginWin.show();
     loginWin.focus();
     loginWin.on("closed", () => {
+      if (loginWin && !loginWin.isDestroyed()) {
+        loginWin.destroy();
+      }
       loginWin = null;
       fetchOne("agy");
       fetchOne("claudeGPT");
+      if (global.gc) { try { global.gc(); } catch {} }
     });
     return;
   }
@@ -161,14 +182,20 @@ function openLogin(id) {
     webPreferences: {
       partition: "persist:bigu",
       userAgent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+      spellcheck: false,
+      devTools: false,
     },
   });
   loginWin.loadURL(card.login);
   loginWin.show();
   loginWin.focus();
   loginWin.on("closed", () => {
+    if (loginWin && !loginWin.isDestroyed()) {
+      loginWin.destroy();
+    }
     loginWin = null;
     fetchOne(id);
+    if (global.gc) { try { global.gc(); } catch {} }
   });
 }
 
@@ -193,6 +220,10 @@ function createWidget() {
       contextIsolation: true,
       nodeIntegration: false,
       partition: "persist:bigu",
+      spellcheck: false,
+      backgroundThrottling: true,
+      devTools: false,
+      enableWebSQL: false,
     },
   });
   widget.setAlwaysOnTop(true, "floating");
@@ -220,7 +251,13 @@ app.whenReady().then(() => {
   };
   createWidget();
   fetchAll();
-  setInterval(fetchAll, 25000);
+  setInterval(fetchAll, 60000); // Poll 60s
+  setInterval(() => {
+    try {
+      const { session } = require("electron");
+      session.fromPartition("persist:bigu").clearCache();
+    } catch {}
+  }, 15 * 60 * 1000);
   setTimeout(checkForUpdates, 4000);
   setInterval(checkForUpdates, 6 * 60 * 60 * 1000);
 });

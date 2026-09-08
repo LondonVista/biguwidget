@@ -10,4 +10,4 @@ rm -rf /Applications/BigUwidget.app
 cp -R BigUwidget.app /Applications/BigUwidget.app
 xattr -cr /Applications/BigUwidget.app
 open /Applications/BigUwidget.app
-osascript -e 'display notification "Installed to /Applications/BigUwidget.app" with title "BigUwidget 1.0.8"'
+osascript -e 'display notification "Installed to /Applications/BigUwidget.app" with title "BigUwidget 1.0.9"'

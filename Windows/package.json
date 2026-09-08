@@ -1,0 +1,48 @@
+{
+  "name": "biguwidget",
+  "productName": "BigUwidget",
+  "version": "1.0.3",
+  "description": "Floating desktop quota dashboard for Grok, Cursor, Antigravity, and ChatGPT — Windows",
+  "main": "src/main.js",
+  "author": {
+    "name": "london_vista",
+    "url": "https://ko-fi.com/london_vista"
+  },
+  "license": "MIT",
+  "homepage": "https://ko-fi.com/london_vista",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis portable --publish never"
+  },
+  "build": {
+    "appId": "com.lodonvista.biguwidget",
+    "productName": "BigUwidget",
+    "copyright": "Copyright © 2026 london_vista",
+    "artifactName": "${productName}-${version}-win-${arch}.${ext}",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": ["src/**/*"],
+    "icon": "build/icon.png",
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "BigUwidget"
+    }
+  },
+  "devDependencies": {
+    "electron": "35.7.5",
+    "electron-builder": "25.1.8"
+  }
+}

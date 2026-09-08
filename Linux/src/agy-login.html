@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Sign in to AGY (Antigravity) — BigUwidget</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      background: #141416;
+      color: #ECECF1;
+      padding: 22px;
+      font-size: 13px;
+      line-height: 1.5;
+      user-select: none;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .logo {
+      font-size: 24px;
+      background: linear-gradient(135deg, #1E88E5, #24C1E0);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #FFFFFF;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.52);
+    }
+    .card {
+      background: #1C1C1F;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #24C1E0;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .desc {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.65);
+      margin-bottom: 10px;
+    }
+    textarea {
+      width: 100%;
+      background: #0E0E10;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #FFFFFF;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 11px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      resize: vertical;
+      min-height: 52px;
+      margin-bottom: 10px;
+      outline: none;
+      display: block;
+    }
+    textarea:focus {
+      border-color: #24C1E0;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 6px;
+      border: none;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-primary {
+      background: #24C1E0;
+      color: #000000;
+      font-weight: 600;
+    }
+    .btn-primary:hover {
+      background: #39D4F0;
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #FFFFFF;
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.16);
+    }
+    .btn-google {
+      background: rgba(66, 133, 244, 0.16);
+      color: #8AB4F8;
+      border: 1px solid rgba(66, 133, 244, 0.35);
+    }
+    .btn-google:hover {
+      background: rgba(66, 133, 244, 0.26);
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .detect-result {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      display: none;
+      word-break: break-all;
+    }
+    .status {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      display: none;
+    }
+    .status.success {
+      display: block;
+      background: rgba(50, 215, 75, 0.15);
+      color: #32D74B;
+      border: 1px solid rgba(50, 215, 75, 0.3);
+    }
+    .status.error {
+      display: block;
+      background: rgba(255, 69, 58, 0.15);
+      color: #FF453A;
+      border: 1px solid rgba(255, 69, 58, 0.3);
+    }
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .hint {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.45);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">AGY</div>
+    <div>
+      <div class="title">Sign in to Antigravity (AGY)</div>
+      <div class="subtitle">Enables Gemini and Claude & GPT usage monitoring</div>
+    </div>
+  </div>
+
+  <!-- Option 1: Auto-detection -->
+  <div class="card">
+    <div class="card-title">🔍 Auto-detect Token (Recommended)</div>
+    <div class="desc">
+      If Antigravity CLI or IDE is installed, BigUwidget can read credentials from Linux Secret Service (<code>secret-tool</code>) or <code>~/.gemini</code>.
+    </div>
+    <div class="row">
+      <button class="btn btn-secondary" id="btn-detect">Scan for Local Token</button>
+      <button class="btn btn-primary" id="btn-use-detected" style="display:none">Use Detected Token</button>
+    </div>
+    <div class="detect-result" id="detect-box"></div>
+  </div>
+
+  <!-- Option 2: Paste token -->
+  <div class="card">
+    <div class="card-title">🔑 Paste Access Token</div>
+    <div class="desc">
+      Paste your Antigravity OAuth access token (starts with <code>ya29...</code>) or credential JSON.
+    </div>
+    <textarea id="token-input" placeholder="Paste token or JSON here..."></textarea>
+    <div class="row">
+      <button class="btn btn-primary" id="btn-save-token">Save & Connect</button>
+      <button class="btn btn-secondary" id="btn-clear-token">Clear Stored Token</button>
+    </div>
+  </div>
+
+  <!-- Option 3: Sign in with Google Web -->
+  <div class="card">
+    <div class="card-title">🌐 Google Account Sign-in</div>
+    <div class="desc">
+      Log in with the Google account you use for Antigravity in the embedded browser.
+    </div>
+    <button class="btn btn-google" id="btn-google-login">Open Google Sign-in Page</button>
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <div class="footer">
+    <span class="hint">Updates automatically sync to the widget.</span>
+    <button class="btn btn-secondary" id="btn-close">Close</button>
+  </div>
+
+  <script>
+    const detectBox = document.getElementById("detect-box");
+    const btnDetect = document.getElementById("btn-detect");
+    const btnUseDetected = document.getElementById("btn-use-detected");
+    const tokenInput = document.getElementById("token-input");
+    const btnSaveToken = document.getElementById("btn-save-token");
+    const btnClearToken = document.getElementById("btn-clear-token");
+    const btnGoogleLogin = document.getElementById("btn-google-login");
+    const btnClose = document.getElementById("btn-close");
+    const statusBox = document.getElementById("status");
+
+    let detectedTokenValue = null;
+
+    function showStatus(text, isSuccess) {
+      statusBox.textContent = text;
+      statusBox.className = "status " + (isSuccess ? "success" : "error");
+    }
+
+    async function runDetection() {
+      detectBox.style.display = "block";
+      detectBox.style.background = "rgba(255, 255, 255, 0.05)";
+      detectBox.style.color = "rgba(255, 255, 255, 0.7)";
+      detectBox.textContent = "Scanning system for Antigravity credentials...";
+      btnUseDetected.style.display = "none";
+
+      try {
+        const res = await window.bigu.detectAGYToken();
+        if (res && res.found && res.token) {
+          detectedTokenValue = res.token;
+          detectBox.style.background = "rgba(50, 215, 75, 0.12)";
+          detectBox.style.color = "#32D74B";
+          detectBox.innerHTML = `✓ Found token from <b>${res.source}</b> (${res.valid ? "Verified active" : "Testing needed"})`;
+          btnUseDetected.style.display = "inline-flex";
+        } else {
+          detectedTokenValue = null;
+          detectBox.style.background = "rgba(255, 255, 255, 0.05)";
+          detectBox.style.color = "rgba(255, 255, 255, 0.5)";
+          detectBox.textContent = "No local Antigravity credentials found. Paste a token below or sign in via Google.";
+        }
+      } catch (err) {
+        detectBox.style.color = "#FF453A";
+        detectBox.textContent = "Error scanning credentials: " + (err.message || err);
+      }
+    }
+
+    btnDetect.addEventListener("click", runDetection);
+
+    btnUseDetected.addEventListener("click", async () => {
+      if (!detectedTokenValue) return;
+      tokenInput.value = detectedTokenValue;
+      await saveToken(detectedTokenValue);
+    });
+
+    async function saveToken(token) {
+      if (!token || !token.trim()) {
+        showStatus("Please paste or enter an access token.", false);
+        return;
+      }
+      btnSaveToken.disabled = true;
+      btnSaveToken.textContent = "Connecting...";
+      showStatus("Validating token with Google Cloud Code API...", true);
+
+      try {
+        const res = await window.bigu.saveAGYToken(token.trim());
+        if (res && res.ok) {
+          showStatus("✓ Connected successfully! Gemini and Claude & GPT quotas are ready.", true);
+          setTimeout(() => {
+            window.bigu.closeLogin();
+          }, 1200);
+        } else {
+          showStatus("Failed to connect: " + ((res && res.error) || "Invalid or expired token."), false);
+        }
+      } catch (e) {
+        showStatus("Connection error: " + (e.message || e), false);
+      } finally {
+        btnSaveToken.disabled = false;
+        btnSaveToken.textContent = "Save & Connect";
+      }
+    }
+
+    btnSaveToken.addEventListener("click", () => {
+      saveToken(tokenInput.value);
+    });
+
+    btnClearToken.addEventListener("click", async () => {
+      await window.bigu.clearAGYToken();
+      tokenInput.value = "";
+      showStatus("Stored Antigravity token cleared.", true);
+    });
+
+    btnGoogleLogin.addEventListener("click", async () => {
+      await window.bigu.openGoogleLogin();
+    });
+
+    btnClose.addEventListener("click", () => {
+      window.bigu.closeLogin();
+    });
+
+    // Run detection on page load
+    window.addEventListener("DOMContentLoaded", () => {
+      runDetection();
+    });
+  </script>
+</body>
+</html>

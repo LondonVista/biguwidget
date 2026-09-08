@@ -1,10 +1,10 @@
 {
-  "version": "1.0.1",
-  "notes": "Ko-fi london_vista. Orange offline label. Update prompt from GitHub.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.0.1",
+  "version": "1.0.2",
+  "notes": "Fairer today-quota math. Sessions list fix. Per-card size. Week chevron and 5h layout. today: X% left +Y% above.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.0.2",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.1/BigUwidget-1.0.1-Mac.zip",
-    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.1/BigUwidget-1.0.1-Linux.zip",
-    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.1/BigUwidget-1.0.1-Windows.zip"
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.2/BigUwidget-1.0.2-Mac.zip",
+    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.2/BigUwidget-1.0.2-Linux.zip",
+    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.2/BigUwidget-1.0.2-Windows.zip"
   }
 }

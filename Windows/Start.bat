@@ -9,7 +9,7 @@ if errorlevel 1 (
 )
 
 if not exist "node_modules\electron" (
-  echo Installing BigUwidget 1.0.4 for Windows (first run only)...
+  echo Installing BigUwidget 1.0.6 for Windows (first run only)...
   call npm install
 )
 

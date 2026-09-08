@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("bigu", {
-  version: "1.0.5",
+  version: "1.0.6",
   fetchAll: () => ipcRenderer.invoke("fetch-all"),
   fetchOne: (id) => ipcRenderer.invoke("fetch-one", id),
   login: (id) => ipcRenderer.invoke("login", id),
@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld("bigu", {
   clearAGYToken: () => ipcRenderer.invoke("clear-agy-token"),
   openGoogleLogin: () => ipcRenderer.invoke("open-google-login"),
   closeLogin: () => ipcRenderer.invoke("close-login"),
+  fitHeight: (h) => ipcRenderer.invoke("fit-height", h),
   onState: (fn) => {
     ipcRenderer.on("state", (_e, data) => fn(data));
   },

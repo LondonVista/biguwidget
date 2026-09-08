@@ -110,7 +110,7 @@ function render() {
       </div>`;
     html += `<div class="sfoot">
       <button class="link" data-act="donate">Donate</button>
-      <span class="sver">v${state.version || "1.0.5"}</span>
+      <span class="sver">v${state.version || "1.0.6"}</span>
       <button class="done" data-act="settings">Done</button>
     </div></div>`;
   }
@@ -160,6 +160,15 @@ function render() {
   }
   html += `</div>`;
   root.innerHTML = html;
+
+  if (window.bigu && typeof window.bigu.fitHeight === "function") {
+    requestAnimationFrame(() => {
+      const h = root.offsetHeight;
+      if (h > 0) {
+        window.bigu.fitHeight(h + 8);
+      }
+    });
+  }
 }
 
 document.addEventListener("click", (e) => {

@@ -1,10 +1,10 @@
 {
-  "version": "1.0.3",
-  "notes": "In-place auto update: Install/Auto downloads, replaces the app, and relaunches. No manual unzip.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.0.3",
+  "version": "1.0.4",
+  "notes": "Fixed AGY login on Linux (auto-detect Antigravity token, dedicated sign-in dialog, Bearer token auth).",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.0.4",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.3/BigUwidget-1.0.3-Mac.zip",
-    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.3/BigUwidget-1.0.3-Linux.zip",
-    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.3/BigUwidget-1.0.3-Windows.zip"
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.4/BigUwidget-1.0.4-Mac.zip",
+    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.4/BigUwidget-1.0.4-Linux.zip",
+    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.4/BigUwidget-1.0.4-Windows.zip"
   }
 }

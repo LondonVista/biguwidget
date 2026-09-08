@@ -10,6 +10,6 @@ Floating desktop quota dashboard for Grok, Cursor, Antigravity, and ChatGPT.
 
 Apps check this repo’s Releases for updates. In Settings choose **Prompt** (ask first), **Auto** (download), or **Off**.
 
-Donate: https://ko-fi.com/lodon_vista
+Donate: https://ko-fi.com/london_vista
 
 Unofficial. Not affiliated with Google, xAI, OpenAI, or Cursor.

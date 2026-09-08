@@ -110,7 +110,7 @@ function render() {
       </div>`;
     html += `<div class="sfoot">
       <button class="link" data-act="donate">Donate</button>
-      <span class="sver">v${state.version || "1.0.8"}</span>
+      <span class="sver">v${state.version || "1.0.9"}</span>
       <button class="done" data-act="settings">Done</button>
     </div></div>`;
   }

@@ -1,10 +1,10 @@
 {
-  "version": "1.0.8",
-  "notes": "Added Open in System Browser option for hardware Passkey login, Ctrl+V and right-click Paste context menu in login window, full Track B native Qt meter for Linux (~40 MB RAM), and version 1.0.8 updates across all platforms.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.0.8",
+  "version": "1.0.9",
+  "notes": "Translucent glass styling on Linux, in-place Settings card with GitHub update checker, fixed mnemonic underscore on Claude & GPT, Passkey helper, and version 1.0.9 updates across all platforms.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.0.9",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.8/BigUwidget-1.0.8-Mac.zip",
-    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.8/BigUwidget-1.0.8-Linux.zip",
-    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.8/BigUwidget-1.0.8-Windows.zip"
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.9/BigUwidget-1.0.9-Mac.zip",
+    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.9/BigUwidget-1.0.9-Linux.zip",
+    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.9/BigUwidget-1.0.9-Windows.zip"
   }
 }

@@ -1,0 +1,49 @@
+{
+  "name": "biguwidget",
+  "productName": "BigUwidget",
+  "version": "1.0.3",
+  "description": "Floating desktop quota dashboard for Grok, Cursor, Antigravity, and ChatGPT — Linux",
+  "main": "src/main.js",
+  "author": {
+    "name": "london_vista",
+    "url": "https://ko-fi.com/london_vista"
+  },
+  "license": "MIT",
+  "homepage": "https://ko-fi.com/london_vista",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --linux AppImage deb --publish never"
+  },
+  "build": {
+    "appId": "com.lodonvista.biguwidget",
+    "productName": "BigUwidget",
+    "copyright": "Copyright © 2026 london_vista",
+    "artifactName": "${productName}-${version}-linux-${arch}.${ext}",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": ["src/**/*"],
+    "icon": "build/icon.png",
+    "linux": {
+      "target": [
+        { "target": "AppImage", "arch": ["x64", "arm64"] },
+        { "target": "deb", "arch": ["x64"] }
+      ],
+      "category": "Utility",
+      "synopsis": "Floating quota dashboard for Grok, Cursor, Antigravity, and ChatGPT",
+      "desktop": {
+        "Name": "BigUwidget",
+        "Comment": "Always-on-top AI quota dashboard",
+        "Categories": "Utility;"
+      }
+    }
+  },
+  "devDependencies": {
+    "electron": "35.7.5",
+    "electron-builder": "25.1.8"
+  }
+}

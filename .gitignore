@@ -1,0 +1,10 @@
+.DS_Store
+*.app
+*.app/
+**/*.app
+**/*.app/
+*.zip
+dist/
+releases/
+node_modules/
+**/node_modules/

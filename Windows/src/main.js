@@ -1,16 +1,23 @@
-const { app, BrowserWindow, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, screen } = require("electron");
 
 // Track A: Chromium RAM Squeeze
 app.commandLine.appendSwitch("disable-gpu");
 app.commandLine.appendSwitch("disable-software-rasterizer");
 app.commandLine.appendSwitch("renderer-process-limit", "1");
 app.commandLine.appendSwitch("disable-features", "SpareRendererForSitePerProcess,CalculateNativeWinOcclusion");
-app.commandLine.appendSwitch("js-flags", "--max-old-space-size=96");
+app.commandLine.appendSwitch("js-flags", "--max-old-space-size=96 --expose-gc");
 app.commandLine.appendSwitch("disable-background-networking");
 app.commandLine.appendSwitch("disable-component-update");
 app.commandLine.appendSwitch("disable-domain-reliability");
 app.commandLine.appendSwitch("disable-sync");
+app.commandLine.appendSwitch("disable-breakpad");
+app.commandLine.appendSwitch("disable-crash-reporter");
+app.commandLine.appendSwitch("disable-speech-api");
+app.commandLine.appendSwitch("disable-print-preview");
+app.commandLine.appendSwitch("disable-logging");
+app.commandLine.appendSwitch("disable-notifications");
 if (process.platform === "linux") {
+  app.commandLine.appendSwitch("enable-transparent-visuals");
   app.commandLine.appendSwitch("no-zygote");
 }
 
@@ -200,19 +207,40 @@ function openLogin(id) {
 }
 
 function createWidget() {
-  const bounds = state.bounds || { width: 236, height: 740, x: undefined, y: undefined };
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+  const defaultWidth = 236;
+  const initialHeight = Math.min(state.bounds?.height || 420, screenHeight - 60);
+
+  // Default to screen center
+  let x = Math.round((screenWidth - defaultWidth) / 2);
+  let y = Math.round((screenHeight - initialHeight) / 2);
+
+  if (state.bounds && typeof state.bounds.x === "number" && typeof state.bounds.y === "number") {
+    // Only use saved x, y if within visible screen boundaries
+    if (state.bounds.x >= 0 && state.bounds.x < screenWidth - 60 && state.bounds.y >= 0 && state.bounds.y < screenHeight - 60) {
+      x = state.bounds.x;
+      y = state.bounds.y;
+    }
+  }
+
   widget = new BrowserWindow({
-    width: bounds.width || 236,
-    height: bounds.height || 740,
-    x: bounds.x,
-    y: bounds.y,
+    width: defaultWidth,
+    height: initialHeight,
+    x: x,
+    y: y,
     minWidth: 220,
-    minHeight: 160,
+    maxWidth: 280,
+    minHeight: 100,
+    maxHeight: screenHeight - 40,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
-    resizable: true,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
     skipTaskbar: false,
+    type: "utility",
     backgroundColor: "#00000000",
     title: "BigUwidget",
     webPreferences: {
@@ -226,12 +254,33 @@ function createWidget() {
       enableWebSQL: false,
     },
   });
-  widget.setAlwaysOnTop(true, "floating");
+
+  if (process.platform === "darwin") {
+    widget.setAlwaysOnTop(true, "floating");
+  } else {
+    widget.setAlwaysOnTop(true);
+  }
+
   widget.loadFile(path.join(__dirname, "index.html"));
-  widget.on("close", () => {
-    state.bounds = widget.getBounds();
-    saveState();
+
+  // Explicitly set bounds to guarantee position and prevent WM centering bugs
+  widget.setBounds({ x, y, width: defaultWidth, height: initialHeight });
+
+  widget.on("moved", () => {
+    if (widget && !widget.isDestroyed()) {
+      const b = widget.getBounds();
+      state.bounds = { ...(state.bounds || {}), x: b.x, y: b.y };
+      saveState();
+    }
   });
+
+  widget.on("close", () => {
+    if (widget && !widget.isDestroyed()) {
+      state.bounds = widget.getBounds();
+      saveState();
+    }
+  });
+
   widget.on("closed", () => {
     widget = null;
   });
@@ -257,7 +306,10 @@ app.whenReady().then(() => {
       const { session } = require("electron");
       session.fromPartition("persist:bigu").clearCache();
     } catch {}
-  }, 15 * 60 * 1000);
+    if (global.gc) {
+      try { global.gc(); } catch {}
+    }
+  }, 60 * 1000);
   setTimeout(checkForUpdates, 4000);
   setInterval(checkForUpdates, 6 * 60 * 60 * 1000);
 });
@@ -387,6 +439,18 @@ ipcMain.handle("open-google-login", () => {
 ipcMain.handle("close-login", () => {
   if (loginWin && !loginWin.isDestroyed()) {
     loginWin.close();
+  }
+  return true;
+});
+
+ipcMain.handle("fit-height", (_e, height) => {
+  if (widget && !widget.isDestroyed() && typeof height === "number" && height > 50) {
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const maxHeight = primaryDisplay.workAreaSize.height - 40;
+    const targetH = Math.min(Math.max(100, Math.ceil(height)), maxHeight);
+    const [w] = widget.getSize();
+    const [x, y] = widget.getPosition();
+    widget.setSize(w, targetH);
   }
   return true;
 });

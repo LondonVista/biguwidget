@@ -1,10 +1,10 @@
 {
-  "version": "1.0.5",
-  "notes": "RAM optimization for Linux & Windows (Track A), version display in Settings footer, gatekeeper unquarantine fix in Install.command.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.0.5",
+  "version": "1.0.6",
+  "notes": "Linux & Windows window fix: centered spawn, dynamic window auto-fit height (no invisible click-shielding overlays), Track A RAM squeeze, and Settings version footer.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.0.6",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.5/BigUwidget-1.0.5-Mac.zip",
-    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.5/BigUwidget-1.0.5-Linux.zip",
-    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.5/BigUwidget-1.0.5-Windows.zip"
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.6/BigUwidget-1.0.6-Mac.zip",
+    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.6/BigUwidget-1.0.6-Linux.zip",
+    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.0.6/BigUwidget-1.0.6-Windows.zip"
   }
 }

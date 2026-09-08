@@ -3,6 +3,10 @@
 
 ![BigUwidget on macOS — Grok, Grok Bot, AGY, and Claude & GPT quota cards](docs/screenshot.png)
 
+![BigUwidget cards — Grok, Grok Bot, AGY, Claude & GPT](docs/screenshot-cards.png)
+
+
+
 Always-on-top **AI usage / quota widget** for **Mac, Linux, and Windows**.
 
 See how much of your weekly (and 5-hour) allowance you have used for:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BigUwidget 1.0.6 — Track B (Native Qt / PySide Desktop Meter for Linux)
+BigUwidget 1.0.9 — Track B (Native Qt / PySide Desktop Meter for Linux)
 Ultra-low memory footprint: ~35–45 MB RSS (down from ~530 MB on Electron).
 Supports PySide6, PyQt6, and PyQt5.
 """
@@ -20,11 +20,13 @@ import urllib.error
 import ssl
 
 # Version & Config
-APP_VERSION = "1.0.8"
+APP_VERSION = "1.0.9"
 DONATE_URL = "https://ko-fi.com/london_vista"
 CONFIG_DIR = Path.home() / ".config" / "biguwidget"
 STATE_FILE = CONFIG_DIR / "state.json"
-USER_AGENT = "BigUwidget/1.0.8 (Linux; x86_64)"
+USER_AGENT = "BigUwidget/1.0.9 (Linux; x86_64)"
+FEED_URL = "https://github.com/LondonVista/biguwidget/releases/latest/download/latest.json"
+RELEASES_URL = "https://github.com/LondonVista/biguwidget/releases/latest"
 
 # Dynamic Qt Import: PySide6 -> PyQt6 -> PyQt5
 QT_LIB = None
@@ -59,6 +61,16 @@ DEFAULT_ENABLED = ["grok", "grokBot", "agy", "claudeGPT"]
 SSL_CTX = ssl.create_default_context()
 
 # ----------------- Helpers -----------------
+
+def cmp_ver(a, b):
+    pa = [int(x) if x.isdigit() else 0 for x in str(a or "0").split(".")]
+    pb = [int(x) if x.isdigit() else 0 for x in str(b or "0").split(".")]
+    for i in range(max(len(pa), len(pb))):
+        x = pa[i] if i < len(pa) else 0
+        y = pb[i] if i < len(pb) else 0
+        if x > y: return 1
+        if x < y: return -1
+    return 0
 
 def clean_token(raw):
     if not raw or not isinstance(raw, str):
@@ -335,6 +347,15 @@ def fetch_chatgpt(cookie_header=None):
     except Exception:
         return {"ok": False, "error": "Parse error"}
 
+def fetch_latest_update():
+    status, body = http_get(FEED_URL)
+    if status == 200:
+        try:
+            return json.loads(body.decode("utf-8"))
+        except Exception:
+            pass
+    return None
+
 # ----------------- UI / Qt Components -----------------
 
 if QT_LIB:
@@ -353,10 +374,10 @@ if QT_LIB:
             self.setObjectName("Card")
             self.setStyleSheet("""
                 #Card {
-                    background-color: rgba(28, 28, 34, 0.95);
+                    background-color: rgba(30, 30, 40, 0.65);
                     border: 1px solid rgba(255, 255, 255, 0.08);
                     border-radius: 9px;
-                    margin-bottom: 5px;
+                    margin-bottom: 4px;
                 }
             """)
             self.layout = QtWidgets.QVBoxLayout(self)
@@ -367,11 +388,11 @@ if QT_LIB:
             hdr = QtWidgets.QHBoxLayout()
             hdr.setContentsMargins(0, 0, 0, 0)
             self.lbl_title = QtWidgets.QLabel(self.title)
-            self.lbl_title.setStyleSheet("font-size: 11px; font-weight: bold; color: #f3f4f6;")
+            self.lbl_title.setStyleSheet("font-size: 11px; font-weight: bold; color: #f3f4f6; background: transparent;")
             hdr.addWidget(self.lbl_title)
 
             self.lbl_status = QtWidgets.QLabel("")
-            self.lbl_status.setStyleSheet("font-size: 10px; color: #f59e0b; margin-left: 4px;")
+            self.lbl_status.setStyleSheet("font-size: 10px; color: #f59e0b; margin-left: 4px; background: transparent;")
             hdr.addWidget(self.lbl_status)
 
             hdr.addStretch()
@@ -392,16 +413,17 @@ if QT_LIB:
 
             # Details container
             self.details_box = QtWidgets.QWidget()
+            self.details_box.setStyleSheet("background: transparent;")
             d_lay = QtWidgets.QVBoxLayout(self.details_box)
             d_lay.setContentsMargins(0, 3, 0, 0)
             d_lay.setSpacing(3)
 
             self.lbl_pct = QtWidgets.QLabel("0% used")
-            self.lbl_pct.setStyleSheet("font-size: 14px; font-weight: bold; color: #ffffff;")
+            self.lbl_pct.setStyleSheet("font-size: 14px; font-weight: bold; color: #ffffff; background: transparent;")
             d_lay.addWidget(self.lbl_pct)
 
             self.lbl_reset = QtWidgets.QLabel("")
-            self.lbl_reset.setStyleSheet("font-size: 9.5px; color: #9ca3af;")
+            self.lbl_reset.setStyleSheet("font-size: 9.5px; color: #9ca3af; background: transparent;")
             d_lay.addWidget(self.lbl_reset)
 
             self.pbar = QtWidgets.QProgressBar()
@@ -409,7 +431,7 @@ if QT_LIB:
             self.pbar.setTextVisible(False)
             self.pbar.setStyleSheet("""
                 QProgressBar {
-                    background-color: #1a1a24;
+                    background-color: rgba(0, 0, 0, 0.35);
                     border: none;
                     border-radius: 2px;
                 }
@@ -424,12 +446,12 @@ if QT_LIB:
             foot = QtWidgets.QHBoxLayout()
             foot.setContentsMargins(0, 2, 0, 0)
             self.lbl_left = QtWidgets.QLabel("")
-            self.lbl_left.setStyleSheet("font-size: 9.5px; color: #9ca3af;")
+            self.lbl_left.setStyleSheet("font-size: 9.5px; color: #9ca3af; background: transparent;")
             foot.addWidget(self.lbl_left)
             foot.addStretch()
 
             self.lbl_ago = QtWidgets.QLabel("")
-            self.lbl_ago.setStyleSheet("font-size: 9.5px; color: #6b7280;")
+            self.lbl_ago.setStyleSheet("font-size: 9.5px; color: #6b7280; background: transparent;")
             foot.addWidget(self.lbl_ago)
             d_lay.addLayout(foot)
 
@@ -437,7 +459,7 @@ if QT_LIB:
 
             # Collapsed summary
             self.lbl_mini = QtWidgets.QLabel("")
-            self.lbl_mini.setStyleSheet("font-size: 10px; color: #d1d5db; padding-top: 2px;")
+            self.lbl_mini.setStyleSheet("font-size: 10px; color: #d1d5db; padding-top: 2px; background: transparent;")
             self.lbl_mini.setVisible(False)
             self.layout.addWidget(self.lbl_mini)
 
@@ -453,7 +475,7 @@ if QT_LIB:
             status = snap.get("status")
             if status == "needsLogin":
                 self.lbl_status.setText("offline")
-                self.lbl_status.setStyleSheet("color: #f59e0b; font-size: 9.5px;")
+                self.lbl_status.setStyleSheet("color: #f59e0b; font-size: 9.5px; background: transparent;")
                 self.lbl_pct.setText("Sign in")
                 self.lbl_reset.setText("")
                 self.pbar.setValue(0)
@@ -462,7 +484,7 @@ if QT_LIB:
                 self.lbl_mini.setText("Offline (Sign in)")
             elif status == "error":
                 self.lbl_status.setText("error")
-                self.lbl_status.setStyleSheet("color: #ef4444; font-size: 9.5px;")
+                self.lbl_status.setStyleSheet("color: #ef4444; font-size: 9.5px; background: transparent;")
                 self.lbl_pct.setText("Refresh failed")
                 self.lbl_reset.setText(snap.get("error", ""))
                 self.lbl_mini.setText("Error")
@@ -492,79 +514,167 @@ if QT_LIB:
             self.parent_widget.show_login_dialog(self.service_id)
 
 
-    class SettingsDialog(QtWidgets.QDialog):
-        def __init__(self, state, parent=None):
-            super().__init__(parent)
-            self.state = state
-            self.setWindowTitle("Widget Settings")
-            self.setFixedSize(220, 310)
+    class SettingsCard(QtWidgets.QFrame):
+        """In-place translucent Settings view (no extra OS window frame)."""
+        def __init__(self, parent_widget):
+            super().__init__()
+            self.parent_widget = parent_widget
+            self.setObjectName("SettingsCard")
             self.setStyleSheet("""
-                QDialog {
-                    background-color: #141418;
-                    color: #ffffff;
-                }
-                QLabel { color: #f3f4f6; }
-                QCheckBox { color: #d1d5db; font-size: 11px; margin: 3px 0; }
-                QPushButton {
-                    background-color: #26262e;
-                    color: #ffffff;
-                    border: 1px solid rgba(255,255,255,0.1);
-                    border-radius: 6px;
-                    padding: 4px 10px;
-                    font-size: 11px;
-                }
-                QPushButton:hover { background-color: #33333d; }
-                QPushButton#doneBtn {
-                    background-color: #6366f1;
-                    font-weight: bold;
+                #SettingsCard {
+                    background-color: rgba(28, 28, 38, 0.75);
+                    border: 1px solid rgba(255, 255, 255, 0.10);
+                    border-radius: 9px;
+                    padding: 8px;
                 }
             """)
-            self.init_ui()
+            self.checks = {}
+            self.policy_btns = {}
+            self.setup_ui()
 
-        def init_ui(self):
+        def setup_ui(self):
             lay = QtWidgets.QVBoxLayout(self)
-            lay.setContentsMargins(12, 12, 12, 12)
-            lay.setSpacing(8)
+            lay.setContentsMargins(6, 6, 6, 6)
+            lay.setSpacing(6)
 
+            # Title
             t = QtWidgets.QLabel("Widget Settings")
-            t.setStyleSheet("font-size: 12px; font-weight: bold;")
+            t.setStyleSheet("font-size: 11.5px; font-weight: bold; color: #ffffff; background: transparent;")
             lay.addWidget(t)
 
-            sub = QtWidgets.QLabel("Toggle visible cards:")
-            sub.setStyleSheet("font-size: 10px; color: #9ca3af;")
+            sub = QtWidgets.QLabel("Toggle cards:")
+            sub.setStyleSheet("font-size: 9.5px; color: #9ca3af; background: transparent;")
             lay.addWidget(sub)
 
-            self.checks = {}
-            enabled = set(self.state.get("enabled", DEFAULT_ENABLED))
+            # Services Checklist
+            state = self.parent_widget.state
+            enabled = set(state.get("enabled", DEFAULT_ENABLED))
             for s in SERVICES:
-                cb = QtWidgets.QCheckBox(s["title"])
+                row = QtWidgets.QHBoxLayout()
+                row.setContentsMargins(0, 0, 0, 0)
+                # Note: replace & with && so Qt doesn't turn it into a mnemonic underscore
+                title_clean = s["title"].replace("&", "&&")
+                cb = QtWidgets.QCheckBox(title_clean)
                 cb.setChecked(s["id"] in enabled)
+                cb.setStyleSheet("QCheckBox { color: #d1d5db; font-size: 10.5px; background: transparent; }")
                 self.checks[s["id"]] = cb
-                lay.addWidget(cb)
+                row.addWidget(cb)
 
-            lay.addStretch()
+                row.addStretch()
 
-            # Donate button
+                btn_log = QtWidgets.QPushButton("👤")
+                btn_log.setFixedSize(16, 16)
+                btn_log.setStyleSheet("QPushButton { background: transparent; color: #9ca3af; border: none; font-size: 10px; } QPushButton:hover { color: #fff; }")
+                btn_log.clicked.connect(lambda _, sid=s["id"]: self.parent_widget.show_login_dialog(sid))
+                row.addWidget(btn_log)
+
+                lay.addLayout(row)
+
+            # Updates Section
+            up_lbl = QtWidgets.QLabel("Updates (GitHub)")
+            up_lbl.setStyleSheet("font-size: 10px; font-weight: bold; color: #e2e8f0; margin-top: 6px; background: transparent;")
+            lay.addWidget(up_lbl)
+
+            u_row = QtWidgets.QHBoxLayout()
+            u_row.setContentsMargins(0, 0, 0, 0)
+            u_row.setSpacing(4)
+
+            current_pol = state.get("updatePolicy", "prompt")
+            for pol in ["off", "prompt", "auto"]:
+                btn = QtWidgets.QPushButton(pol.capitalize())
+                btn.setFixedHeight(22)
+                btn.clicked.connect(lambda _, p=pol: self.set_policy(p))
+                self.policy_btns[pol] = btn
+                u_row.addWidget(btn)
+
+            btn_check = QtWidgets.QPushButton("↻")
+            btn_check.setFixedSize(22, 22)
+            btn_check.setToolTip("Check for updates now")
+            btn_check.setStyleSheet("QPushButton { background: rgba(255,255,255,0.08); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; font-size: 11px; } QPushButton:hover { background: rgba(255,255,255,0.16); }")
+            btn_check.clicked.connect(self.check_now)
+            u_row.addWidget(btn_check)
+            lay.addLayout(u_row)
+            self.update_policy_ui()
+
+            # Status / Update feedback
+            self.lbl_update_status = QtWidgets.QLabel("")
+            self.lbl_update_status.setStyleSheet("font-size: 9px; color: #a5b4fc; background: transparent;")
+            lay.addWidget(self.lbl_update_status)
+
+            # Donate Button
             btn_donate = QtWidgets.QPushButton("💖 Donate")
+            btn_donate.setFixedHeight(24)
+            btn_donate.setStyleSheet("""
+                QPushButton {
+                    background: rgba(255, 255, 255, 0.06);
+                    color: #f43f5e;
+                    border: 1px solid rgba(244, 63, 94, 0.25);
+                    border-radius: 5px;
+                    font-size: 10.5px;
+                    font-weight: 500;
+                }
+                QPushButton:hover { background: rgba(244, 63, 94, 0.15); }
+            """)
             btn_donate.clicked.connect(lambda: webbrowser.open(DONATE_URL))
             lay.addWidget(btn_donate)
 
-            # Footer with version
+            # Footer
             foot = QtWidgets.QHBoxLayout()
+            foot.setContentsMargins(0, 4, 0, 0)
             lbl_ver = QtWidgets.QLabel(f"v{APP_VERSION} (Track B Qt)")
-            lbl_ver.setStyleSheet("font-size: 9px; color: #6b7280;")
+            lbl_ver.setStyleSheet("font-size: 9px; color: #64748b; background: transparent;")
             foot.addWidget(lbl_ver)
             foot.addStretch()
 
             btn_done = QtWidgets.QPushButton("Done")
-            btn_done.setObjectName("doneBtn")
-            btn_done.clicked.connect(self.accept)
+            btn_done.setFixedSize(48, 22)
+            btn_done.setStyleSheet("""
+                QPushButton {
+                    background: #6366f1;
+                    color: #ffffff;
+                    border: none;
+                    border-radius: 5px;
+                    font-size: 10px;
+                    font-weight: bold;
+                }
+                QPushButton:hover { background: #4f46e5; }
+            """)
+            btn_done.clicked.connect(self.save_and_close)
             foot.addWidget(btn_done)
             lay.addLayout(foot)
 
-        def get_enabled_ids(self):
-            return [sid for sid, cb in self.checks.items() if cb.isChecked()]
+        def set_policy(self, pol):
+            self.parent_widget.state["updatePolicy"] = pol
+            self.parent_widget.save_state()
+            self.update_policy_ui()
 
+        def update_policy_ui(self):
+            cur = self.parent_widget.state.get("updatePolicy", "prompt")
+            for pol, btn in self.policy_btns.items():
+                if pol == cur:
+                    btn.setStyleSheet("QPushButton { background: #6366f1; color: #ffffff; border: none; border-radius: 4px; font-size: 10px; font-weight: bold; }")
+                else:
+                    btn.setStyleSheet("QPushButton { background: rgba(255,255,255,0.06); color: #94a3b8; border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; font-size: 10px; } QPushButton:hover { background: rgba(255,255,255,0.12); color: #fff; }")
+
+        def check_now(self):
+            self.lbl_update_status.setText("Checking GitHub...")
+            def worker():
+                latest = fetch_latest_update()
+                if latest and latest.get("version"):
+                    ver = latest["version"]
+                    if cmp_ver(ver, APP_VERSION) > 0:
+                        self.parent_widget.update_signal.emit({"type": "status", "msg": f"Update {ver} available! (Click to open)", "url": latest.get("html_url", RELEASES_URL)})
+                    else:
+                        self.parent_widget.update_signal.emit({"type": "status", "msg": f"Up to date (v{APP_VERSION})", "url": None})
+                else:
+                    self.parent_widget.update_signal.emit({"type": "status", "msg": "Could not check updates", "url": None})
+            threading.Thread(target=worker, daemon=True).start()
+
+        def save_and_close(self):
+            enabled = [sid for sid, cb in self.checks.items() if cb.isChecked()]
+            self.parent_widget.state["enabled"] = enabled
+            self.parent_widget.save_state()
+            self.parent_widget.toggle_settings()
 
     class LoginDialog(QtWidgets.QDialog):
         def __init__(self, service_id, parent=None):
@@ -573,43 +683,59 @@ if QT_LIB:
             self.svc = next((s for s in SERVICES if s["id"] == service_id), None)
             self.setWindowTitle(f"Sign in — {self.svc['title'] if self.svc else ''}")
             self.setFixedSize(270, 220)
+            self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+            self.setAttribute(Qt.WA_TranslucentBackground)
             self.setStyleSheet("""
-                QDialog { background-color: #141418; color: #ffffff; }
-                QLabel { color: #f3f4f6; font-size: 11px; }
-                QLineEdit {
-                    background-color: #1f1f26;
+                QDialog {
+                    background-color: rgba(18, 18, 24, 0.95);
+                    border: 1px solid rgba(255, 255, 255, 0.15);
+                    border-radius: 12px;
                     color: #ffffff;
-                    border: 1px solid rgba(255,255,255,0.15);
-                    border-radius: 5px;
-                    padding: 5px;
+                }
+                QLabel { color: #f3f4f6; font-size: 11px; background: transparent; }
+                QLineEdit {
+                    background-color: rgba(255, 255, 255, 0.08);
+                    color: #ffffff;
+                    border: 1px solid rgba(255, 255, 255, 0.15);
+                    border-radius: 6px;
+                    padding: 6px;
                     font-size: 10px;
                 }
                 QPushButton {
-                    background-color: #26262e;
+                    background-color: rgba(255, 255, 255, 0.08);
                     color: #ffffff;
-                    border: 1px solid rgba(255,255,255,0.1);
-                    border-radius: 5px;
+                    border: 1px solid rgba(255, 255, 255, 0.12);
+                    border-radius: 6px;
                     padding: 5px 8px;
                     font-size: 11px;
                 }
-                QPushButton:hover { background-color: #33333d; }
+                QPushButton:hover { background-color: rgba(255, 255, 255, 0.15); }
             """)
             self.init_ui()
 
         def init_ui(self):
             lay = QtWidgets.QVBoxLayout(self)
-            lay.setContentsMargins(12, 12, 12, 12)
+            lay.setContentsMargins(14, 14, 14, 14)
             lay.setSpacing(8)
 
-            t = QtWidgets.QLabel(f"Sign in to {self.svc['title'] if self.svc else ''}")
+            hdr = QtWidgets.QHBoxLayout()
+            t = QtWidgets.QLabel(f"Sign in — {self.svc['title'] if self.svc else ''}")
             t.setStyleSheet("font-size: 12px; font-weight: bold;")
-            lay.addWidget(t)
+            hdr.addWidget(t)
+            hdr.addStretch()
 
-            desc = QtWidgets.QLabel("1. Open in browser to log in:\n2. Paste session cookie or token below:")
+            btn_x = QtWidgets.QPushButton("✕")
+            btn_x.setFixedSize(18, 18)
+            btn_x.setStyleSheet("QPushButton { border: none; background: transparent; color: #9ca3af; font-size: 11px; } QPushButton:hover { color: #ef4444; }")
+            btn_x.clicked.connect(self.reject)
+            hdr.addWidget(btn_x)
+            lay.addLayout(hdr)
+
+            desc = QtWidgets.QLabel("1. Log in via your system browser:\n2. Paste session cookie or token below:")
             desc.setStyleSheet("color: #9ca3af; font-size: 10px;")
             lay.addWidget(desc)
 
-            btn_open = QtWidgets.QPushButton("🌐 Open Browser")
+            btn_open = QtWidgets.QPushButton("🌐 Open in System Browser")
             if self.svc:
                 btn_open.clicked.connect(lambda: webbrowser.open(self.svc["login_url"]))
             lay.addWidget(btn_open)
@@ -620,24 +746,27 @@ if QT_LIB:
 
             lay.addStretch()
 
-            btn_save = QtWidgets.QPushButton("Save & Refresh")
-            btn_save.setStyleSheet("background-color: #6366f1; font-weight: bold;")
+            btn_save = QtWidgets.QPushButton("Save && Refresh")
+            btn_save.setStyleSheet("background-color: #6366f1; font-weight: bold; border: none;")
             btn_save.clicked.connect(self.accept)
             lay.addWidget(btn_save)
 
 
     class BigUwidgetWindow(QtWidgets.QWidget):
         data_signal = Signal(dict)
+        update_signal = Signal(dict)
 
         def __init__(self):
             super().__init__()
             self.drag_position = QPoint()
             self.cards = {}
+            self.show_settings = False
             self.state = self.load_state()
 
             self.init_window_flags()
             self.init_ui()
             self.data_signal.connect(self.on_data_received)
+            self.update_signal.connect(self.on_update_event)
 
             # Center window on first run if no bounds saved
             self.position_window()
@@ -652,8 +781,9 @@ if QT_LIB:
             self.time_timer.timeout.connect(self.update_relative_times)
             self.time_timer.start(30000)
 
-            # Initial fetch
+            # Initial fetch & update check
             QTimer.singleShot(100, self.fetch_all_async)
+            QTimer.singleShot(3000, self.check_updates_startup)
 
         def init_window_flags(self):
             self.setWindowFlags(
@@ -669,12 +799,12 @@ if QT_LIB:
             self.main_layout.setContentsMargins(6, 6, 6, 6)
             self.main_layout.setSpacing(0)
 
-            # Card container container
+            # Translucent glass root frame
             self.root_frame = QtWidgets.QFrame()
             self.root_frame.setObjectName("RootFrame")
             self.root_frame.setStyleSheet("""
                 #RootFrame {
-                    background-color: rgba(14, 14, 18, 0.94);
+                    background-color: rgba(16, 16, 22, 0.72);
                     border: 1px solid rgba(255, 255, 255, 0.12);
                     border-radius: 12px;
                 }
@@ -687,7 +817,7 @@ if QT_LIB:
             hdr = QtWidgets.QHBoxLayout()
             hdr.setContentsMargins(4, 2, 4, 4)
             lbl_logo = QtWidgets.QLabel("BigUwidget")
-            lbl_logo.setStyleSheet("font-size: 11px; font-weight: bold; color: #a5b4fc;")
+            lbl_logo.setStyleSheet("font-size: 11px; font-weight: bold; color: #a5b4fc; background: transparent;")
             hdr.addWidget(lbl_logo)
             hdr.addStretch()
 
@@ -700,7 +830,7 @@ if QT_LIB:
             btn_settings = QtWidgets.QPushButton("⚙")
             btn_settings.setFixedSize(16, 16)
             btn_settings.setStyleSheet("QPushButton { background: transparent; color: #9ca3af; border: none; font-size: 10px; } QPushButton:hover { color: #fff; }")
-            btn_settings.clicked.connect(self.open_settings)
+            btn_settings.clicked.connect(self.toggle_settings)
             hdr.addWidget(btn_settings)
 
             btn_quit = QtWidgets.QPushButton("✕")
@@ -710,6 +840,35 @@ if QT_LIB:
             hdr.addWidget(btn_quit)
 
             self.card_layout.addLayout(hdr)
+
+            # Optional Update Banner Card (hidden by default)
+            self.update_card = QtWidgets.QFrame()
+            self.update_card.setObjectName("UpdateCard")
+            self.update_card.setStyleSheet("""
+                #UpdateCard {
+                    background-color: rgba(99, 102, 241, 0.25);
+                    border: 1px solid rgba(99, 102, 241, 0.45);
+                    border-radius: 8px;
+                    margin-bottom: 4px;
+                    padding: 4px 6px;
+                }
+            """)
+            u_lay = QtWidgets.QHBoxLayout(self.update_card)
+            u_lay.setContentsMargins(4, 2, 4, 2)
+            self.lbl_update_banner = QtWidgets.QLabel("Update available")
+            self.lbl_update_banner.setStyleSheet("font-size: 9.5px; color: #ffffff; background: transparent;")
+            u_lay.addWidget(self.lbl_update_banner)
+            u_lay.addStretch()
+            self.btn_update_link = QtWidgets.QPushButton("Download ↗")
+            self.btn_update_link.setStyleSheet("QPushButton { background: #6366f1; color: #fff; border: none; border-radius: 4px; font-size: 9px; padding: 2px 6px; font-weight: bold; } QPushButton:hover { background: #4f46e5; }")
+            u_lay.addWidget(self.btn_update_link)
+            self.update_card.setVisible(False)
+            self.card_layout.addWidget(self.update_card)
+
+            # In-place Settings Card (hidden by default)
+            self.settings_card = SettingsCard(self)
+            self.settings_card.setVisible(False)
+            self.card_layout.addWidget(self.settings_card)
 
             # Add Service Cards
             enabled = set(self.state.get("enabled", DEFAULT_ENABLED))
@@ -772,7 +931,7 @@ if QT_LIB:
                     return json.loads(STATE_FILE.read_text("utf-8"))
                 except Exception:
                     pass
-            return {"enabled": DEFAULT_ENABLED, "bounds": None, "tokens": {}}
+            return {"enabled": DEFAULT_ENABLED, "bounds": None, "tokens": {}, "updatePolicy": "prompt"}
 
         def save_state(self):
             try:
@@ -780,15 +939,14 @@ if QT_LIB:
             except Exception:
                 pass
 
-        def open_settings(self):
-            dlg = SettingsDialog(self.state, self)
-            if dlg.exec():
-                enabled = dlg.get_enabled_ids()
-                self.state["enabled"] = enabled
-                self.save_state()
-                for sid, card in self.cards.items():
-                    card.setVisible(sid in enabled)
-                self.fit_to_content()
+        def toggle_settings(self):
+            self.show_settings = not self.show_settings
+            self.settings_card.setVisible(self.show_settings)
+            enabled = set(self.state.get("enabled", DEFAULT_ENABLED))
+            for sid, card in self.cards.items():
+                card.setVisible(not self.show_settings and sid in enabled)
+            self.fit_to_content()
+            if not self.show_settings:
                 self.fetch_all_async()
 
         def show_login_dialog(self, service_id):
@@ -801,6 +959,44 @@ if QT_LIB:
                     self.state["tokens"][service_id] = val
                     self.save_state()
                     self.fetch_all_async()
+
+        def check_updates_startup(self):
+            pol = self.state.get("updatePolicy", "prompt")
+            if pol == "off":
+                return
+            def worker():
+                latest = fetch_latest_update()
+                if latest and latest.get("version"):
+                    if cmp_ver(latest["version"], APP_VERSION) > 0:
+                        self.update_signal.emit({
+                            "type": "banner",
+                            "version": latest["version"],
+                            "url": latest.get("html_url", RELEASES_URL),
+                        })
+            threading.Thread(target=worker, daemon=True).start()
+
+        def on_update_event(self, data):
+            if data.get("type") == "status":
+                msg = data.get("msg", "")
+                url = data.get("url")
+                self.settings_card.lbl_update_status.setText(msg)
+                if url:
+                    try:
+                        self.settings_card.lbl_update_status.mousePressEvent = lambda _: webbrowser.open(url)
+                        self.settings_card.lbl_update_status.setStyleSheet("font-size: 9px; color: #818cf8; text-decoration: underline; cursor: pointer; background: transparent;")
+                    except Exception:
+                        pass
+            elif data.get("type") == "banner":
+                ver = data.get("version")
+                url = data.get("url", RELEASES_URL)
+                self.lbl_update_banner.setText(f"Update v{ver} available!")
+                try:
+                    self.btn_update_link.clicked.disconnect()
+                except Exception:
+                    pass
+                self.btn_update_link.clicked.connect(lambda: webbrowser.open(url))
+                self.update_card.setVisible(True)
+                self.fit_to_content()
 
         def fetch_all_async(self):
             tokens = self.state.get("tokens", {})

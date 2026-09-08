@@ -1,4 +1,4 @@
-# BigUwidget 1.0.4 — Linux
+# BigUwidget 1.0.6 — Linux
 
 Copy **this folder** onto a Linux machine. Do not copy `electron/` or `Windows/`.
 
@@ -21,8 +21,8 @@ npm run dist
 
 Files land in `dist/`:
 
-- `BigUwidget-1.0.4-linux-x64.AppImage`
-- `BigUwidget-1.0.4-linux-arm64.AppImage`
+- `BigUwidget-1.0.6-linux-x64.AppImage`
+- `BigUwidget-1.0.6-linux-arm64.AppImage`
 - `.deb` (x64)
 
 ## Updates

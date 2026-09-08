@@ -18,7 +18,9 @@ Unofficial desktop dashboard. Not affiliated with Google, xAI, OpenAI, Anthropic
 
 ### Demo
 
-https://github.com/LondonVista/biguwidget/raw/main/docs/biguwidget.mp4
+![BigUwidget demo](docs/demo.gif)
+
+GitHub README files **cannot autoplay MP4**. GIFs play on their own. Full clip: [biguwidget.mp4](docs/biguwidget.mp4)
 
 ## Download
 

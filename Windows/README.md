@@ -1,4 +1,4 @@
-# BigUwidget 1.0.6 — Windows
+# BigUwidget 1.0.7 — Windows
 
 Copy **this folder** onto a Windows PC. Do not copy `electron/` or `Linux/`.
 
@@ -20,7 +20,7 @@ npm run dist
 
 Files land in `dist\`:
 
-- `BigUwidget-1.0.6-win-x64.exe` (NSIS installer)
+- `BigUwidget-1.0.7-win-x64.exe` (NSIS installer)
 - portable `.exe`
 
 Build this on Windows (cross-build from Mac/Linux needs Wine).

@@ -24,13 +24,13 @@ Unofficial desktop dashboard. Not affiliated with Google, xAI, OpenAI, Anthropic
 
 ## Download
 
-Latest release: **[v1.0.6](https://github.com/LondonVista/biguwidget/releases/latest)**
+Latest release: **[v1.0.7](https://github.com/LondonVista/biguwidget/releases/latest)**
 
 | OS | File |
 |---|---|
-| **Mac** (native app) | [BigUwidget-1.0.6-Mac.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.0.6-Mac.zip) |
-| **Linux** | [BigUwidget-1.0.6-Linux.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.0.6-Linux.zip) |
-| **Windows** | [BigUwidget-1.0.6-Windows.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.0.6-Windows.zip) |
+| **Mac** (native app) | [BigUwidget-1.0.7-Mac.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.0.7-Mac.zip) |
+| **Linux** | [BigUwidget-1.0.7-Linux.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.0.7-Linux.zip) |
+| **Windows** | [BigUwidget-1.0.7-Windows.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.0.7-Windows.zip) |
 
 Mac: unzip and run **Install.command**, or drag `BigUwidget.app` to `/Applications`.  
 Linux: Node.js 20+, then `./Start.sh`.  

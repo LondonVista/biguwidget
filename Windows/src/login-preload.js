@@ -1,24 +1,30 @@
-// Intercepts WebAuthn / Passkey calls in embedded login window.
-// Electron does not implement native OS passkey/biometric dialogs on Linux,
-// which causes X/Twitter to hang indefinitely on "Sign in with passkey".
-// Disabling publicKey credentials forces X/Twitter to immediately offer the standard password prompt.
+const { webFrame } = require("electron");
 
-try {
-  if (globalThis.PublicKeyCredential) {
-    globalThis.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable = () => Promise.resolve(false);
-    if (typeof globalThis.PublicKeyCredential.isConditionalMediationAvailable === "function") {
-      globalThis.PublicKeyCredential.isConditionalMediationAvailable = () => Promise.resolve(false);
-    }
-  }
-
-  const nav = globalThis.navigator;
-  if (nav && nav.credentials) {
-    const origGet = nav.credentials.get ? nav.credentials.get.bind(nav.credentials) : null;
-    nav.credentials.get = function (options) {
-      if (options && options.publicKey) {
-        return Promise.reject(new DOMException("Passkeys not supported in embedded login window", "NotAllowedError"));
+// Execute in the Main World so the page's scripts (e.g. x.com / grok.com)
+// see that WebAuthn / Passkeys are not supported on this embedded window.
+// This prevents Twitter/X from getting stuck on "Sign in with passkey"
+// and forces it to immediately present the standard password field.
+webFrame.executeJavaScript(`
+(() => {
+  try {
+    if (window.PublicKeyCredential) {
+      window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable = () => Promise.resolve(false);
+      if (typeof window.PublicKeyCredential.isConditionalMediationAvailable === "function") {
+        window.PublicKeyCredential.isConditionalMediationAvailable = () => Promise.resolve(false);
       }
-      return origGet ? origGet(options) : Promise.reject(new DOMException("Not supported", "NotSupportedError"));
-    };
-  }
-} catch (e) {}
+    }
+    if (navigator.credentials) {
+      const origGet = navigator.credentials.get ? navigator.credentials.get.bind(navigator.credentials) : null;
+      navigator.credentials.get = function(options) {
+        if (options && options.publicKey) {
+          return Promise.reject(new DOMException("WebAuthn not supported", "NotAllowedError"));
+        }
+        return origGet ? origGet(options) : Promise.reject(new DOMException("Not supported", "NotSupportedError"));
+      };
+      navigator.credentials.create = function() {
+        return Promise.reject(new DOMException("WebAuthn not supported", "NotAllowedError"));
+      };
+    }
+  } catch (e) {}
+})();
+`);

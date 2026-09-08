@@ -1,4 +1,4 @@
-# BigUwidget 1.0.9 — Windows
+# BigUwidget 1.1.0 — Windows
 
 Copy **this folder** onto a Windows PC. Do not copy `electron/` or `Linux/`.
 

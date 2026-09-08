@@ -1,8 +1,8 @@
-# BigUwidget 1.0.9 — Linux
+# BigUwidget 1.1.0 — Linux
 
 Copy **this folder** onto a Linux machine. Do not copy `electron/` or `Windows/`.
 
-BigUwidget on Linux now offers **Track B: Native Qt / PySide** with an ultra-low memory footprint (~35–45 MB RSS vs ~530 MB on Electron).
+BigUwidget on Linux runs via **Electron** with pixel-perfect CSS glassmorphism (`backdrop-filter: blur()`), seamless OAuth login, clipboard paste support, and real-time usage meters.
 
 ## Quick Start
 
@@ -11,24 +11,26 @@ chmod +x Start.sh
 ./Start.sh
 ```
 
-- **Track B (Default)**: Automatically runs the native Qt meter via Python 3 + PySide6 (~40 MB RAM).
-- **Electron (Fallback)**: Run `./Start.sh --electron` or `npm start` if you prefer the Electron shell.
+*(or run `npm install && npm start`)*
 
-## Installer (AppImage + .deb)
+Requires **Node.js 20+** and `npm`.
+
+## Standalone AppImage / .deb
+
+To build a standalone portable binary:
 
 ```bash
 npm run dist
 ```
 
-Files land in `dist/`:
-
-- `BigUwidget-1.0.9-linux-x64.AppImage`
-- `BigUwidget-1.0.9-linux-arm64.AppImage`
+Generated packages will be in `dist/`:
+- `BigUwidget-1.1.0-linux-x64.AppImage`
+- `BigUwidget-1.1.0-linux-arm64.AppImage`
 - `.deb` (x64)
 
 ## Updates
 
-Settings → **Off / Prompt / Auto**. Prompt is the default. The app checks [GitHub Releases](https://github.com/LondonVista/biguwidget/releases) for a newer zip.
+Settings → **Off / Prompt / Auto**. Prompt is the default. The app checks [GitHub Releases](https://github.com/LondonVista/biguwidget/releases) for newer versions.
 
 Donate: https://ko-fi.com/london_vista  
 Unofficial. Not affiliated with Google, xAI, OpenAI, or Cursor.

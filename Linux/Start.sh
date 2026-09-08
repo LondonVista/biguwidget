@@ -8,7 +8,7 @@ if ! command -v npm >/dev/null 2>&1; then
 fi
 
 if [ ! -d node_modules/electron ]; then
-  echo "Installing BigUwidget 1.0.3 for Linux (first run only)…"
+  echo "Installing BigUwidget 1.0.4 for Linux (first run only)…"
   npm install
 fi
 

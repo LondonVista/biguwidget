@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, screen } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, screen, Menu } = require("electron");
 
 // Track A: Chromium RAM Squeeze
 app.commandLine.appendSwitch("disable-gpu");
@@ -195,6 +195,41 @@ function openLogin(id) {
     },
   });
   loginWin.loadURL(card.login);
+
+  // Enable Ctrl+V (or Cmd+V) and keyboard shortcuts for paste/copy on Linux/Windows
+  loginWin.webContents.on("before-input-event", (event, input) => {
+    if ((input.control || input.meta) && input.type === "keyDown") {
+      const k = input.key.toLowerCase();
+      if (k === "v") {
+        loginWin.webContents.paste();
+        event.preventDefault();
+      } else if (k === "c") {
+        loginWin.webContents.copy();
+        event.preventDefault();
+      } else if (k === "x") {
+        loginWin.webContents.cut();
+        event.preventDefault();
+      } else if (k === "a") {
+        loginWin.webContents.selectAll();
+        event.preventDefault();
+      }
+    }
+  });
+
+  // Enable right-click context menu with Paste, Copy, Cut
+  loginWin.webContents.on("context-menu", (_e, params) => {
+    const menu = Menu.buildFromTemplate([
+      { role: "undo" },
+      { role: "redo" },
+      { type: "separator" },
+      { role: "cut" },
+      { role: "copy" },
+      { role: "paste" },
+      { role: "selectAll" },
+    ]);
+    menu.popup({ window: loginWin, x: params.x, y: params.y });
+  });
+
   loginWin.show();
   loginWin.focus();
   loginWin.on("closed", () => {

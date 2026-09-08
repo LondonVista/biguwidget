@@ -490,3 +490,10 @@ ipcMain.handle("fit-height", (_e, height) => {
   }
   return true;
 });
+
+ipcMain.on("open-external-url", (_e, url) => {
+  if (url && (url.startsWith("https://") || url.startsWith("http://"))) {
+    shell.openExternal(url);
+  }
+});
+

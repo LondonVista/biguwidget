@@ -1,4 +1,4 @@
-# BigUwidget 1.1.4 — Windows (Experimental)
+# BigUwidget 1.1.5 — Windows (Experimental)
  
 > **Note**: This Windows build is provided as an experimental preview. It is not currently tested on a native Windows machine by the maintainer. Feedback, bug reports, and PRs from Windows users are very welcome!
  
@@ -22,7 +22,7 @@ npm run dist
 
 Files land in `dist\`:
 
-- `BigUwidget-1.1.2-win-x64.exe` (NSIS installer)
+- `BigUwidget-1.1.5-win-x64.exe` (NSIS installer)
 - portable `.exe`
 
 Build this on Windows (cross-build from Mac/Linux needs Wine).

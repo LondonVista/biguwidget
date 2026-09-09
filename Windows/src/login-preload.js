@@ -53,28 +53,37 @@ window.addEventListener("DOMContentLoaded", () => {
     `;
 
     pill.innerHTML = `
-      <span>Want to use a <b>Passkey</b>?</span>
+      <div style="display: flex; flex-direction: column; gap: 3px;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="color:#ffd60a; font-weight:600;">📋 Tip:</span>
+          <span>If Ctrl+V doesn't paste password, <b>Right-Click → Paste</b>.</span>
+        </div>
+        <div style="font-size: 10px; opacity: 0.75;">
+          ⏳ After signing in, please wait ~20–30s while the widget connects.
+        </div>
+      </div>
       <button id="bigu-ext-btn" style="
         background: #6366f1;
         color: #ffffff;
         border: none;
         border-radius: 12px;
         padding: 3px 9px;
-        font-size: 10.5px;
+        font-size: 10px;
         font-weight: 600;
         cursor: pointer;
         display: flex;
         align-items: center;
         gap: 3px;
-      ">Open in System Browser ↗</button>
+        white-space: nowrap;
+      ">Passkey? ↗</button>
       <button id="bigu-ext-close" style="
         background: transparent;
         color: #94a3b8;
         border: none;
         cursor: pointer;
-        font-size: 12px;
+        font-size: 13px;
         margin-left: 2px;
-        padding: 0 2px;
+        padding: 0 4px;
       ">✕</button>
     `;
 

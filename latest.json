@@ -1,10 +1,10 @@
 {
-  "version": "1.1.1",
-  "notes": "BigUwidget 1.1.1: Fixed countdown colors (transition from orange when far to vibrant green when close to reset on S1 and 5h window), updated cross-platform support and documentation.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.1.1",
+  "version": "1.1.2",
+  "notes": "BigUwidget 1.1.2: Added in-app Feedback & Bug Report shortcut in Settings across macOS, Linux, and Windows; improved countdown color thresholds.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.1.2",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.1/BigUwidget-1.1.1-Mac.zip",
-    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.1/BigUwidget-1.1.1-Linux.zip",
-    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.1/BigUwidget-1.1.1-Windows.zip"
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.2/BigUwidget-1.1.2-Mac.zip",
+    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.2/BigUwidget-1.1.2-Linux.zip",
+    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.2/BigUwidget-1.1.2-Windows.zip"
   }
 }

@@ -1,4 +1,4 @@
-# BigUwidget 1.1.0 — Windows (Experimental)
+# BigUwidget 1.1.1 — Windows (Experimental)
  
 > **Note**: This Windows build is packaged using Electron and provided as an experimental preview. It is not currently tested on a native Windows machine by the maintainer. Feedback, bug reports, and PRs from Windows users are very welcome!
  

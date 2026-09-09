@@ -41,7 +41,7 @@ function fmtPct(n) {
   return r === Math.round(r) ? String(Math.round(r)) : r.toFixed(1);
 }
 
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.2", updatePolicy: "prompt", update: null };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.3", updatePolicy: "prompt", update: null };
 let showSettings = false;
 let isCheckingUpdates = false;
 let checkStatusMsg = "";
@@ -72,7 +72,7 @@ function render() {
   html += `<div class="card drag chrome">
     <div class="row">
       <div class="brand">BigUwidget</div>
-      <div class="ver">${state.version || "1.1.2"}</div>
+      <div class="ver">${state.version || "1.1.3"}</div>
       <div class="space"></div>
       <button class="btn no-drag" data-act="settings" title="Settings">⚙</button>
       <button class="btn no-drag" data-act="refresh" title="Refresh">↻</button>
@@ -117,7 +117,7 @@ function render() {
         <button class="link" data-act="donate">Donate</button>
         <button class="link fb" data-act="feedback">Feedback</button>
       </div>
-      <span class="sver">v${state.version || "1.1.2"}</span>
+      <span class="sver">v${state.version || "1.1.3"}</span>
       <button class="done" data-act="settings">Done</button>
     </div></div>`;
   }

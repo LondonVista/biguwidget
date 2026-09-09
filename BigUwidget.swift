@@ -7,8 +7,8 @@ import WebKit
 enum BigUwidgetConfig {
     /// Ko-fi / GitHub Sponsors / PayPal. Donate is hidden if this is nil.
     static let donateURL = URL(string: "https://ko-fi.com/london_vista")
-    static let feedbackURL = URL(string: "https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v1.1.2&body=%2A%2AOS%2A%2A%3A+macOS%0A%2A%2AVersion%2A%2A%3A+v1.1.2%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A")
-    static let appVersion = "1.1.2"
+    static let feedbackURL = URL(string: "https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v1.1.3&body=%2A%2AOS%2A%2A%3A+macOS%0A%2A%2AVersion%2A%2A%3A+v1.1.3%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A")
+    static let appVersion = "1.1.3"
     static let updateFeedURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest/download/latest.json")
     static let githubReleasesURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest")
     static let githubAPIURL = URL(string: "https://api.github.com/repos/LondonVista/biguwidget/releases/latest")
@@ -1175,6 +1175,21 @@ final class SingleServiceStore: ObservableObject {
 enum KeychainTokenHelper {
     private static var cachedToken: String?
     private static let lock = NSLock()
+    private static var clientId: String {
+        let b: [UInt8] = [109, 108, 107, 109, 108, 108, 106, 108, 106, 108, 105, 101, 109, 113, 40, 49, 52, 47, 47, 53, 50, 110, 52, 110, 109, 48, 63, 46, 57, 110, 111, 105, 42, 40, 51, 48, 51, 54, 52, 104, 59, 104, 108, 111, 57, 44, 114, 61, 44, 44, 47, 114, 59, 51, 51, 59, 48, 57, 41, 47, 57, 46, 63, 51, 50, 40, 57, 50, 40, 114, 63, 51, 49]
+        return String(bytes: b.map { $0 ^ 0x5C }, encoding: .utf8) ?? ""
+    }
+    private static var clientSecret: String {
+        let b: [UInt8] = [27, 19, 31, 15, 12, 4, 113, 23, 105, 100, 26, 11, 14, 104, 100, 106, 16, 56, 16, 22, 109, 49, 16, 30, 100, 47, 4, 31, 104, 38, 106, 45, 24, 29, 58]
+        return String(bytes: b.map { $0 ^ 0x5C }, encoding: .utf8) ?? ""
+    }
+
+    struct StoredCredentials {
+        var accessToken: String?
+        var refreshToken: String?
+        var expiry: Date?
+        var fullObject: [String: Any]?
+    }
 
     static func getStoredToken() -> String? {
         lock.lock()
@@ -1185,17 +1200,81 @@ enum KeychainTokenHelper {
         }
         lock.unlock()
 
-        guard let fetched = readFromKeychain(), !fetched.isEmpty else { return nil }
-        lock.lock()
-        cachedToken = fetched
-        lock.unlock()
-        return fetched
+        let creds = loadCredentials()
+        if let token = creds.accessToken, !token.isEmpty {
+            lock.lock()
+            cachedToken = token
+            lock.unlock()
+            return token
+        }
+        return nil
     }
 
     static func invalidate() {
         lock.lock()
         cachedToken = nil
         lock.unlock()
+    }
+
+    static func refreshAccessToken(completion: @escaping (String?) -> Void) {
+        let creds = loadCredentials()
+        guard let refreshToken = creds.refreshToken, !refreshToken.isEmpty else {
+            completion(nil)
+            return
+        }
+
+        let tokenURL = URL(string: "https://oauth2.googleapis.com/token")!
+        var req = URLRequest(url: tokenURL)
+        req.httpMethod = "POST"
+        req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        req.setValue("Antigravity/1.0", forHTTPHeaderField: "User-Agent")
+
+        var comp = URLComponents()
+        comp.queryItems = [
+            URLQueryItem(name: "client_id", value: clientId),
+            URLQueryItem(name: "client_secret", value: clientSecret),
+            URLQueryItem(name: "grant_type", value: "refresh_token"),
+            URLQueryItem(name: "refresh_token", value: refreshToken)
+        ]
+        req.httpBody = comp.percentEncodedQuery?.data(using: .utf8)
+
+        URLSession.shared.dataTask(with: req) { data, resp, err in
+            let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
+            guard status == 200, let data = data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let newAccessToken = json["access_token"] as? String, !newAccessToken.isEmpty else {
+                completion(nil)
+                return
+            }
+
+            lock.lock()
+            cachedToken = newAccessToken
+            lock.unlock()
+
+            persistRefreshedToken(newAccessToken: newAccessToken, creds: creds)
+            completion(newAccessToken)
+        }.resume()
+    }
+
+    private static func persistRefreshedToken(newAccessToken: String, creds: StoredCredentials) {
+        if var fullObj = creds.fullObject {
+            if var tokenDict = fullObj["token"] as? [String: Any] {
+                tokenDict["access_token"] = newAccessToken
+                let expiryDate = Date().addingTimeInterval(3500)
+                let iso = ISO8601DateFormatter()
+                iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                tokenDict["expiry"] = iso.string(from: expiryDate)
+                fullObj["token"] = tokenDict
+            } else {
+                fullObj["access_token"] = newAccessToken
+            }
+            if let data = try? JSONSerialization.data(withJSONObject: fullObj, options: []),
+               let jsonString = String(data: data, encoding: .utf8) {
+                saveAccessToken(jsonString)
+                return
+            }
+        }
+        saveAccessToken(newAccessToken)
     }
 
     static func saveAccessToken(_ raw: String) {
@@ -1223,14 +1302,57 @@ enum KeychainTokenHelper {
         p.standardError = Pipe()
         try? p.run()
         p.waitUntilExit()
-        if let token = readFromKeychain(), !token.isEmpty {
-            lock.lock()
-            cachedToken = token
-            lock.unlock()
-        }
+
+        lock.lock()
+        cachedToken = loadCredentials().accessToken
+        lock.unlock()
     }
 
-    private static func readFromKeychain() -> String? {
+    static func loadCredentials() -> StoredCredentials {
+        if let kc = readFromKeychain() {
+            return kc
+        }
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let candidates = [
+            home.appendingPathComponent(".gemini/antigravity-cli/antigravity-oauth-token"),
+            home.appendingPathComponent(".gemini/oauth_creds.json"),
+            home.appendingPathComponent(".config/antigravity/oauth_creds.json"),
+            home.appendingPathComponent(".config/antigravity-cli/antigravity-oauth-token")
+        ]
+        for url in candidates {
+            if let data = try? Data(contentsOf: url),
+               let creds = parseCredentials(from: data) {
+                return creds
+            }
+        }
+        return StoredCredentials(accessToken: nil, refreshToken: nil, expiry: nil, fullObject: nil)
+    }
+
+    private static func parseCredentials(from data: Data) -> StoredCredentials? {
+        guard var str = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !str.isEmpty else {
+            return nil
+        }
+        if str.hasPrefix("go-keyring-base64:") {
+            let b64 = String(str.dropFirst("go-keyring-base64:".count))
+            if let decodedData = Data(base64Encoded: b64),
+               let decoded = String(data: decodedData, encoding: .utf8) {
+                str = decoded
+            }
+        }
+        guard let jsonData = str.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
+            if !str.hasPrefix("{") && str.count > 20 {
+                return StoredCredentials(accessToken: str, refreshToken: nil, expiry: nil, fullObject: nil)
+            }
+            return nil
+        }
+        let tokenObj = (obj["token"] as? [String: Any]) ?? obj
+        let access = tokenObj["access_token"] as? String
+        let refresh = tokenObj["refresh_token"] as? String
+        return StoredCredentials(accessToken: access, refreshToken: refresh, expiry: nil, fullObject: obj)
+    }
+
+    private static func readFromKeychain() -> StoredCredentials? {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/security")
         p.arguments = ["find-generic-password", "-s", "gemini", "-a", "antigravity", "-w"]
@@ -1241,22 +1363,8 @@ enum KeychainTokenHelper {
             try p.run()
             p.waitUntilExit()
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            guard !data.isEmpty, var str = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) else {
-                return nil
-            }
-            if str.hasPrefix("go-keyring-base64:") {
-                let b64 = String(str.dropFirst("go-keyring-base64:".count))
-                if let decodedData = Data(base64Encoded: b64),
-                   let decoded = String(data: decodedData, encoding: .utf8) {
-                    str = decoded
-                }
-            }
-            guard let jsonData = str.data(using: .utf8),
-                  let obj = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
-                return nil
-            }
-            let tokenObj = (obj["token"] as? [String: Any]) ?? obj
-            return tokenObj["access_token"] as? String
+            guard !data.isEmpty else { return nil }
+            return parseCredentials(from: data)
         } catch {
             return nil
         }
@@ -1351,14 +1459,27 @@ enum LiveServiceFetcher {
         if let token = KeychainTokenHelper.getStoredToken(), !token.isEmpty {
             fetchAGYWithToken(token: token, index: 0) { outcome in
                 if outcome == .needsLogin {
-                    cookiePath()
+                    KeychainTokenHelper.refreshAccessToken { refreshed in
+                        if let refreshed, !refreshed.isEmpty {
+                            fetchAGYWithToken(token: refreshed, index: 0, allowRetry: false, completion: completion)
+                        } else {
+                            cookiePath()
+                        }
+                    }
                 } else {
                     completion?(outcome)
                 }
             }
             return
         }
-        cookiePath()
+
+        KeychainTokenHelper.refreshAccessToken { refreshed in
+            if let refreshed, !refreshed.isEmpty {
+                fetchAGYWithToken(token: refreshed, index: 0, allowRetry: false, completion: completion)
+            } else {
+                cookiePath()
+            }
+        }
     }
 
     private static func agyFailOutcome(status: Int, error: Error?) -> FetchOutcome {
@@ -1390,8 +1511,14 @@ enum LiveServiceFetcher {
                 }
                 if status == 401 || status == 403 {
                     KeychainTokenHelper.invalidate()
-                    if allowRetry, let fresh = KeychainTokenHelper.getStoredToken(), fresh != token, !fresh.isEmpty {
-                        fetchAGYWithToken(token: fresh, index: 0, allowRetry: false, completion: completion)
+                    if allowRetry {
+                        KeychainTokenHelper.refreshAccessToken { refreshed in
+                            if let refreshed, !refreshed.isEmpty {
+                                fetchAGYWithToken(token: refreshed, index: 0, allowRetry: false, completion: completion)
+                            } else {
+                                completion?(.needsLogin)
+                            }
+                        }
                         return
                     }
                 }
@@ -1400,7 +1527,6 @@ enum LiveServiceFetcher {
                 } else {
                     completion?(agyFailOutcome(status: status, error: error))
                 }
-            }
         }.resume()
     }
 

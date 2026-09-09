@@ -1,10 +1,10 @@
 {
-  "version": "1.1.4",
-  "notes": "BigUwidget 1.1.4: Fixed renderer async syntax error in click listener, ensuring immediate rendering on launch.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.1.4",
+  "version": "1.1.5",
+  "notes": "BigUwidget 1.1.5: Centered settings popup modal, minimize button in chrome bar, settings gear moved to first card, login icon hidden once connected, login paste & patience helper banner.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.1.5",
   "downloads": {
     "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.2/BigUwidget-1.1.2-Mac.zip",
-    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.4/BigUwidget-1.1.4-Linux.zip",
-    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.4/BigUwidget-1.1.4-Windows.zip"
+    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.5/BigUwidget-1.1.5-Linux.zip",
+    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.5/BigUwidget-1.1.5-Windows.zip"
   }
 }

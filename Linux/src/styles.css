@@ -11,12 +11,26 @@
 * { box-sizing: border-box; }
 html, body {
   margin: 0;
+  padding: 0;
   background: transparent;
   font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
   color: var(--text);
   user-select: none;
+  overflow: hidden !important;
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
 }
-#root { padding: 8px; width: 228px; }
+::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+#root {
+  padding: 8px;
+  width: 100%;
+  max-width: 236px;
+  overflow: hidden !important;
+}
 .stack { display: flex; flex-direction: column; gap: 6px; }
 .card {
   background: var(--bg);
@@ -123,4 +137,19 @@ html, body {
   font-weight: 700;
   cursor: pointer;
   font-size: 11px;
+}
+.check-status {
+  font-size: 10px;
+  color: var(--cyan);
+  opacity: 0.9;
+  margin-left: 4px;
+  font-weight: 500;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spinning {
+  display: inline-block;
+  animation: spin 0.75s linear infinite;
 }

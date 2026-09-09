@@ -43,6 +43,9 @@ function fmtPct(n) {
 
 let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.2", updatePolicy: "prompt", update: null };
 let showSettings = false;
+let isCheckingUpdates = false;
+let checkStatusMsg = "";
+let checkStatusTimer = null;
 const collapsed = new Set();
 
 function orderedCards() {
@@ -106,7 +109,8 @@ function render() {
         <button class="tog ${pol === "off" ? "on" : ""}" data-act="update-policy" data-id="off">Off</button>
         <button class="tog ${pol === "prompt" ? "on" : ""}" data-act="update-policy" data-id="prompt">Prompt</button>
         <button class="tog ${pol === "auto" ? "on" : ""}" data-act="update-policy" data-id="auto">Auto</button>
-        <button class="btn" data-act="check-updates" title="Check now">↻</button>
+        <button class="btn ${isCheckingUpdates ? "spinning" : ""}" data-act="check-updates" title="Check now">↻</button>
+        ${checkStatusMsg ? `<span class="check-status">${checkStatusMsg}</span>` : ""}
       </div>`;
     html += `<div class="sfoot">
       <div class="sfoot-links">
@@ -206,7 +210,30 @@ document.addEventListener("click", (e) => {
   if (act === "fetch" && id) window.bigu.fetchOne(id);
   if (act === "update-policy" && id) window.bigu.setUpdatePolicy(id);
   if (act === "install-update") window.bigu.installUpdate();
-  if (act === "check-updates") window.bigu.checkUpdates();
+  if (act === "check-updates") {
+    if (isCheckingUpdates) return;
+    isCheckingUpdates = true;
+    checkStatusMsg = "";
+    if (checkStatusTimer) clearTimeout(checkStatusTimer);
+    render();
+    try {
+      const res = await window.bigu.checkUpdates();
+      if (res && res.update && res.update.version) {
+        checkStatusMsg = `v${res.update.version} available!`;
+      } else {
+        checkStatusMsg = "Up to date ✓";
+      }
+    } catch {
+      checkStatusMsg = "Check failed";
+    } finally {
+      isCheckingUpdates = false;
+      render();
+      checkStatusTimer = setTimeout(() => {
+        checkStatusMsg = "";
+        render();
+      }, 3500);
+    }
+  }
   if (act === "open-releases") window.bigu.openReleases();
   if (act === "feedback") window.bigu.openFeedback();
 });

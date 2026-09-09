@@ -351,9 +351,9 @@ app.whenReady().then(() => {
   setInterval(checkForUpdates, 6 * 60 * 60 * 1000);
 });
 
-async function checkForUpdates() {
+async function checkForUpdates(force = false) {
   const policy = state.updatePolicy || "prompt";
-  if (policy === "off") return;
+  if (!force && policy === "off") return;
   try {
     const latest = await updater.fetchLatest();
     if (!latest || updater.cmpVer(latest.version, VERSION) <= 0) {
@@ -423,7 +423,7 @@ ipcMain.handle("install-update", async () => {
   return publicState();
 });
 ipcMain.handle("check-updates", async () => {
-  await checkForUpdates();
+  await checkForUpdates(true);
   return publicState();
 });
 ipcMain.handle("open-releases", () => shell.openExternal(updater.PAGE));

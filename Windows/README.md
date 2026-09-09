@@ -1,4 +1,4 @@
-# BigUwidget 1.1.3 — Windows (Experimental)
+# BigUwidget 1.1.4 — Windows (Experimental)
  
 > **Note**: This Windows build is provided as an experimental preview. It is not currently tested on a native Windows machine by the maintainer. Feedback, bug reports, and PRs from Windows users are very welcome!
  

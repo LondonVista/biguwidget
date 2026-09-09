@@ -2,7 +2,7 @@
 
 Copy **this folder** onto a Linux machine. Do not copy `electron/` or `Windows/`.
 
-BigUwidget on Linux runs via **Electron** with pixel-perfect CSS glassmorphism (`backdrop-filter: blur()`), seamless OAuth login, clipboard paste support, and real-time usage meters.
+BigUwidget on Linux provides pixel-perfect translucent glassmorphism (`backdrop-filter: blur()`), seamless OAuth login, clipboard paste support, and real-time usage meters.
 
 ## Quick Start
 

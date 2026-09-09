@@ -34,7 +34,7 @@ Latest release: **[v1.1.5](https://github.com/LondonVista/biguwidget/releases/la
 
 | OS | Status | File |
 |---|---|---|
-| **Mac** | Native App (Recommended) | [BigUwidget-1.1.2-Mac.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.1.2/BigUwidget-1.1.2-Mac.zip) |
+| **Mac** | Native App (Recommended) | [BigUwidget-1.1.3-Mac.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.1.5/BigUwidget-1.1.3-Mac.zip) |
 | **Linux** | Tested & Maintained | [BigUwidget-1.1.5-Linux.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.1.5-Linux.zip) |
 | **Windows** | Experimental (Untested) | [BigUwidget-1.1.5-Windows.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.1.5-Windows.zip) |
 

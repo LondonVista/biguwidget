@@ -41,7 +41,7 @@ function fmtPct(n) {
   return r === Math.round(r) ? String(Math.round(r)) : r.toFixed(1);
 }
 
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.1", updatePolicy: "prompt", update: null };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.2", updatePolicy: "prompt", update: null };
 let showSettings = false;
 const collapsed = new Set();
 
@@ -69,7 +69,7 @@ function render() {
   html += `<div class="card drag chrome">
     <div class="row">
       <div class="brand">BigUwidget</div>
-      <div class="ver">${state.version || "1.1.1"}</div>
+      <div class="ver">${state.version || "1.1.2"}</div>
       <div class="space"></div>
       <button class="btn no-drag" data-act="settings" title="Settings">⚙</button>
       <button class="btn no-drag" data-act="refresh" title="Refresh">↻</button>
@@ -109,8 +109,11 @@ function render() {
         <button class="btn" data-act="check-updates" title="Check now">↻</button>
       </div>`;
     html += `<div class="sfoot">
-      <button class="link" data-act="donate">Donate</button>
-      <span class="sver">v${state.version || "1.1.1"}</span>
+      <div class="sfoot-links">
+        <button class="link" data-act="donate">Donate</button>
+        <button class="link fb" data-act="feedback">Feedback</button>
+      </div>
+      <span class="sver">v${state.version || "1.1.2"}</span>
       <button class="done" data-act="settings">Done</button>
     </div></div>`;
   }
@@ -205,6 +208,7 @@ document.addEventListener("click", (e) => {
   if (act === "install-update") window.bigu.installUpdate();
   if (act === "check-updates") window.bigu.checkUpdates();
   if (act === "open-releases") window.bigu.openReleases();
+  if (act === "feedback") window.bigu.openFeedback();
 });
 
 async function boot() {

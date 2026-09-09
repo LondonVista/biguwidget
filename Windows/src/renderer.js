@@ -41,11 +41,7 @@ function fmtPct(n) {
   return r === Math.round(r) ? String(Math.round(r)) : r.toFixed(1);
 }
 
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.4", updatePolicy: "prompt", update: null };
-let showSettings = false;
-let isCheckingUpdates = false;
-let checkStatusMsg = "";
-let checkStatusTimer = null;
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.5", updatePolicy: "prompt", update: null };
 const collapsed = new Set();
 
 function orderedCards() {
@@ -72,11 +68,10 @@ function render() {
   html += `<div class="card drag chrome">
     <div class="row">
       <div class="brand">BigUwidget</div>
-      <div class="ver">${state.version || "1.1.4"}</div>
+      <div class="ver">${state.version || "1.1.5"}</div>
       <div class="space"></div>
-      <button class="btn no-drag" data-act="settings" title="Settings">⚙</button>
       <button class="btn no-drag" data-act="refresh" title="Refresh">↻</button>
-      <button class="btn no-drag" data-act="donate" title="Donate">♥</button>
+      <button class="btn no-drag" data-act="minimize" title="Minimize">−</button>
       <button class="btn no-drag" data-act="quit" title="Quit">✕</button>
     </div>
   </div>`;
@@ -91,53 +86,31 @@ function render() {
     </div>`;
   }
 
-  if (showSettings) {
-    html += `<div class="card no-drag settings">
-      <div class="stitle">Widget Settings</div>
-      <div class="shelp">Toggle cards. ChatGPT is opt-in. Sign in after enabling.</div>`;
-    for (const card of all) {
-      const on = enabled.has(card.id);
-      html += `<div class="srow">
-        <span class="sname">${card.title}</span>
-        <button class="btn" data-act="login" data-id="${card.id}" title="Sign in">👤</button>
-        <button class="tog ${on ? "on" : ""}" data-act="toggle" data-id="${card.id}">${on ? "On" : "Off"}</button>
-      </div>`;
-    }
-    const pol = state.updatePolicy || "prompt";
-    html += `<div class="shelp" style="margin-top:10px">Updates (GitHub)</div>
-      <div class="srow">
-        <button class="tog ${pol === "off" ? "on" : ""}" data-act="update-policy" data-id="off">Off</button>
-        <button class="tog ${pol === "prompt" ? "on" : ""}" data-act="update-policy" data-id="prompt">Prompt</button>
-        <button class="tog ${pol === "auto" ? "on" : ""}" data-act="update-policy" data-id="auto">Auto</button>
-        <button class="btn ${isCheckingUpdates ? "spinning" : ""}" data-act="check-updates" title="Check now">↻</button>
-        ${checkStatusMsg ? `<span class="check-status">${checkStatusMsg}</span>` : ""}
-      </div>`;
-    html += `<div class="sfoot">
-      <div class="sfoot-links">
-        <button class="link" data-act="donate">Donate</button>
-        <button class="link fb" data-act="feedback">Feedback</button>
-      </div>
-      <span class="sver">v${state.version || "1.1.4"}</span>
-      <button class="done" data-act="settings">Done</button>
-    </div></div>`;
+  if (!cards.length) {
+    html += `<div class="card"><div class="muted">No cards enabled. <button class="link" data-act="settings" style="text-decoration:underline">Open Settings</button> to turn services on.</div></div>`;
   }
 
-  if (!cards.length && !showSettings) {
-    html += `<div class="card"><div class="muted">No cards enabled. Open Settings to turn services on.</div></div>`;
-  }
-
+  let cardIndex = 0;
   for (const card of cards) {
     const snap = (state.snapshots && state.snapshots[card.id]) || { status: "loading" };
     const isCol = collapsed.has(card.id);
+    const isFirstCard = cardIndex === 0;
+    cardIndex++;
+
     html += `<div class="card">`;
     html += `<div class="row drag"><div class="title">${card.title}</div>`;
     if (snap.status === "needsLogin") {
       html += `<span class="offline no-drag" data-act="login" data-id="${card.id}">offline</span>`;
     }
-    html += `<div class="space"></div>
-      <button class="btn no-drag" data-act="collapse" data-id="${card.id}" title="Collapse">${isCol ? "▾" : "▴"}</button>
-      <button class="btn no-drag" data-act="login" data-id="${card.id}" title="Sign in">👤</button>
-    </div>`;
+    html += `<div class="space"></div>`;
+    if (isFirstCard) {
+      html += `<button class="btn no-drag" data-act="settings" title="Settings">⚙</button>`;
+    }
+    html += `<button class="btn no-drag" data-act="collapse" data-id="${card.id}" title="Collapse">${isCol ? "▾" : "▴"}</button>`;
+    if (snap.status !== "ready") {
+      html += `<button class="btn no-drag" data-act="login" data-id="${card.id}" title="Sign in">👤</button>`;
+    }
+    html += `</div>`;
     if (isCol && snap.status === "ready") {
       html += `<div class="mini"><span class="mpct">${fmtPct(snap.weekly)}%</span> used
         <span class="space"></span><span class="ago no-drag" data-act="fetch" data-id="${card.id}">${ago(snap.fetchedAt)}</span></div>`;
@@ -183,21 +156,15 @@ document.addEventListener("click", async (e) => {
   if (!t || !window.bigu) return;
   const act = t.getAttribute("data-act");
   const id = t.getAttribute("data-id");
+
   if (act === "quit") window.bigu.quit();
-  if (act === "donate") window.bigu.openDonate();
+  if (act === "minimize") window.bigu.minimize();
+  if (act === "settings") window.bigu.openSettingsWindow();
   if (act === "refresh") window.bigu.fetchAll();
-  if (act === "settings") {
-    showSettings = !showSettings;
-    render();
-  }
   if (act === "collapse" && id) {
     if (collapsed.has(id)) collapsed.delete(id);
     else collapsed.add(id);
     render();
-  }
-  if (act === "toggle" && id) {
-    const on = !(state.enabled || []).includes(id);
-    window.bigu.setEnabled(id, on);
   }
   if (act === "add" && id) {
     window.bigu.setEnabled(id, true);
@@ -208,34 +175,8 @@ document.addEventListener("click", async (e) => {
     window.bigu.login(id);
   }
   if (act === "fetch" && id) window.bigu.fetchOne(id);
-  if (act === "update-policy" && id) window.bigu.setUpdatePolicy(id);
   if (act === "install-update") window.bigu.installUpdate();
-  if (act === "check-updates") {
-    if (isCheckingUpdates) return;
-    isCheckingUpdates = true;
-    checkStatusMsg = "";
-    if (checkStatusTimer) clearTimeout(checkStatusTimer);
-    render();
-    try {
-      const res = await window.bigu.checkUpdates();
-      if (res && res.update && res.update.version) {
-        checkStatusMsg = `v${res.update.version} available!`;
-      } else {
-        checkStatusMsg = "Up to date ✓";
-      }
-    } catch {
-      checkStatusMsg = "Check failed";
-    } finally {
-      isCheckingUpdates = false;
-      render();
-      checkStatusTimer = setTimeout(() => {
-        checkStatusMsg = "";
-        render();
-      }, 3500);
-    }
-  }
   if (act === "open-releases") window.bigu.openReleases();
-  if (act === "feedback") window.bigu.openFeedback();
 });
 
 async function boot() {

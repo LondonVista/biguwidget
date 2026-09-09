@@ -7,7 +7,8 @@ import WebKit
 enum BigUwidgetConfig {
     /// Ko-fi / GitHub Sponsors / PayPal. Donate is hidden if this is nil.
     static let donateURL = URL(string: "https://ko-fi.com/london_vista")
-    static let appVersion = "1.1.1"
+    static let feedbackURL = URL(string: "https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v1.1.2&body=%2A%2AOS%2A%2A%3A+macOS%0A%2A%2AVersion%2A%2A%3A+v1.1.2%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A")
+    static let appVersion = "1.1.2"
     static let updateFeedURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest/download/latest.json")
     static let githubReleasesURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest")
     static let githubAPIURL = URL(string: "https://api.github.com/repos/LondonVista/biguwidget/releases/latest")
@@ -7086,6 +7087,19 @@ struct WidgetSettingsView: View {
                     }
                     .buttonStyle(.plain)
                     .help("Support BigUwidget")
+                }
+                if let fbURL = BigUwidgetConfig.feedbackURL {
+                    Button(action: { NSWorkspace.shared.open(fbURL) }) {
+                        HStack(spacing: 3) {
+                            Image(systemName: "bubble.left.and.exclamationmark.bubble.right.fill")
+                                .font(.system(size: 9))
+                            Text("Feedback")
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                        .foregroundStyle(Color.white.opacity(0.55))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Report a bug or submit feedback on GitHub")
                 }
                 Spacer()
                 Text("v\(BigUwidgetConfig.appVersion)")

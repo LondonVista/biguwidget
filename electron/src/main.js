@@ -27,6 +27,7 @@ const fetchers = require("./fetchers");
 const updater = require("./updater");
 
 const DONATE = "https://ko-fi.com/london_vista";
+const FEEDBACK = `https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v${updater.VERSION}&body=%2A%2AOS%2A%2A%3A+${process.platform}%0A%2A%2AVersion%2A%2A%3A+v${updater.VERSION}%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A`;
 const VERSION = updater.VERSION;
 
 const CARDS = [
@@ -406,6 +407,7 @@ ipcMain.handle("set-order", (_e, ids) => {
   return publicState();
 });
 ipcMain.handle("open-donate", () => shell.openExternal(DONATE));
+ipcMain.handle("open-feedback", () => shell.openExternal(FEEDBACK));
 ipcMain.handle("quit", () => app.quit());
 ipcMain.handle("set-update-policy", (_e, policy) => {
   if (["off", "prompt", "auto"].includes(policy)) {

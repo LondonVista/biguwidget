@@ -1527,6 +1527,7 @@ enum LiveServiceFetcher {
                 } else {
                     completion?(agyFailOutcome(status: status, error: error))
                 }
+            }
         }.resume()
     }
 

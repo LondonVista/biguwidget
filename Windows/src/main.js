@@ -277,7 +277,8 @@ function createWidget() {
     maximizable: false,
     fullscreenable: false,
     skipTaskbar: false,
-    type: "utility",
+    type: process.platform === "darwin" ? "utility" : "normal",
+    show: false,
     backgroundColor: "#00000000",
     title: "BigUwidget",
     webPreferences: {
@@ -297,6 +298,11 @@ function createWidget() {
   } else {
     widget.setAlwaysOnTop(true);
   }
+
+  widget.once("ready-to-show", () => {
+    widget.show();
+    widget.focus();
+  });
 
   widget.loadFile(path.join(__dirname, "index.html"));
 

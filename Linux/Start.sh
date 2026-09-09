@@ -2,7 +2,7 @@
 set -e
 cd "$(dirname "$0")"
 
-echo "Starting BigUwidget (Electron)..."
+echo "Starting BigUwidget for Linux..."
 
 if ! command -v npm >/dev/null 2>&1; then
   echo "Error: Node.js 20+ and npm are required to run BigUwidget on Linux."

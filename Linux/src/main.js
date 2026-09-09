@@ -58,6 +58,7 @@ function saveState() {
 let state = loadState();
 let widget = null;
 let loginWin = null;
+let settingsWin = null;
 
 function emptySnap(id) {
   return { id, status: "loading", weekly: 0, five: null, reset: null, fiveReset: null, fetchedAt: 0 };
@@ -80,7 +81,9 @@ function publicState() {
 }
 
 function broadcast() {
-  if (widget && !widget.isDestroyed()) widget.webContents.send("state", publicState());
+  const pub = publicState();
+  if (widget && !widget.isDestroyed()) widget.webContents.send("state", pub);
+  if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send("state", pub);
 }
 
 function applyResult(id, res) {
@@ -334,6 +337,71 @@ function createWidget() {
   });
 }
 
+function openSettingsWindow() {
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.show();
+    settingsWin.focus();
+    return;
+  }
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+  const winWidth = 320;
+  const winHeight = 520;
+  const x = Math.round((screenWidth - winWidth) / 2);
+  const y = Math.round((screenHeight - winHeight) / 2);
+
+  settingsWin = new BrowserWindow({
+    width: winWidth,
+    height: winHeight,
+    x: x,
+    y: y,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: false,
+    show: false,
+    backgroundColor: "#00000000",
+    title: "BigUwidget Settings",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      partition: "persist:bigu",
+      spellcheck: false,
+      devTools: false,
+    },
+  });
+
+  if (process.platform === "darwin") {
+    settingsWin.setAlwaysOnTop(true, "floating");
+  } else {
+    settingsWin.setAlwaysOnTop(true);
+  }
+
+  settingsWin.loadFile(path.join(__dirname, "settings.html"));
+
+  settingsWin.once("ready-to-show", () => {
+    if (settingsWin && !settingsWin.isDestroyed()) {
+      settingsWin.show();
+      settingsWin.focus();
+    }
+  });
+
+  settingsWin.on("closed", () => {
+    settingsWin = null;
+  });
+}
+
+function closeSettingsWindow() {
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.close();
+    settingsWin = null;
+  }
+}
+
 app.setName("BigUwidget");
 app.whenReady().then(() => {
   const loaded = loadState();
@@ -419,6 +487,18 @@ ipcMain.handle("set-order", (_e, ids) => {
 });
 ipcMain.handle("open-donate", () => shell.openExternal(DONATE));
 ipcMain.handle("open-feedback", () => shell.openExternal(FEEDBACK));
+ipcMain.handle("minimize", () => {
+  if (widget && !widget.isDestroyed()) widget.minimize();
+  return true;
+});
+ipcMain.handle("open-settings-window", () => {
+  openSettingsWindow();
+  return true;
+});
+ipcMain.handle("close-settings-window", () => {
+  closeSettingsWindow();
+  return true;
+});
 ipcMain.handle("quit", () => app.quit());
 ipcMain.handle("set-update-policy", (_e, policy) => {
   if (["off", "prompt", "auto"].includes(policy)) {

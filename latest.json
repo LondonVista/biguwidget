@@ -1,10 +1,10 @@
 {
-  "version": "1.1.0",
-  "notes": "BigUwidget 1.1.0: Linux standardized strictly on Electron with pixel-perfect CSS glassmorphism, seamless login, clipboard paste, and one-click Start.sh launcher.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.1.0",
+  "version": "1.1.1",
+  "notes": "BigUwidget 1.1.1: Fixed countdown colors (transition from orange when far to vibrant green when close to reset on S1 and 5h window), updated cross-platform support and documentation.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.1.1",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.0/BigUwidget-1.1.0-Mac.zip",
-    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.0/BigUwidget-1.1.0-Linux.zip",
-    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.0/BigUwidget-1.1.0-Windows.zip"
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.1/BigUwidget-1.1.1-Mac.zip",
+    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.1/BigUwidget-1.1.1-Linux.zip",
+    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.1/BigUwidget-1.1.1-Windows.zip"
   }
 }

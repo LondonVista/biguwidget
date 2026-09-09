@@ -1,4 +1,4 @@
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.5", updatePolicy: "prompt", update: null };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.6", updatePolicy: "prompt", update: null };
 let isCheckingUpdates = false;
 let checkStatusMsg = "";
 let checkStatusTimer = null;

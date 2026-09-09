@@ -1,8 +1,8 @@
-# BigUwidget 1.1.2 — Windows (Experimental)
+# BigUwidget 1.1.3 — Windows (Experimental)
  
-> **Note**: This Windows build is packaged using Electron and provided as an experimental preview. It is not currently tested on a native Windows machine by the maintainer. Feedback, bug reports, and PRs from Windows users are very welcome!
+> **Note**: This Windows build is provided as an experimental preview. It is not currently tested on a native Windows machine by the maintainer. Feedback, bug reports, and PRs from Windows users are very welcome!
  
-Copy **this folder** onto a Windows PC. Do not copy `electron/` or `Linux/`.
+Copy **this folder** onto a Windows PC. Do not copy other platform folders.
 
 Needs [Node.js 20+](https://nodejs.org/).
 
@@ -10,7 +10,7 @@ Needs [Node.js 20+](https://nodejs.org/).
 
 Double-click **Start.bat**.
 
-First run downloads Electron (~150–200 MB) for Windows. After that, Start.bat or `npm start`.
+First run sets up dependencies. After that, launch with **Start.bat**.
 
 ## Installer (Setup + portable .exe)
 

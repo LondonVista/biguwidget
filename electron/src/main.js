@@ -1,8 +1,9 @@
 const { app, BrowserWindow, ipcMain, shell, screen, Menu } = require("electron");
 
-// Track A: Chromium RAM Squeeze
-app.commandLine.appendSwitch("disable-gpu");
-app.commandLine.appendSwitch("disable-software-rasterizer");
+// Performance & lightweight memory profile
+if (process.platform === "linux") {
+  app.commandLine.appendSwitch("enable-transparent-visuals");
+}
 app.commandLine.appendSwitch("renderer-process-limit", "1");
 app.commandLine.appendSwitch("disable-features", "SpareRendererForSitePerProcess,CalculateNativeWinOcclusion");
 app.commandLine.appendSwitch("js-flags", "--max-old-space-size=96 --expose-gc");
@@ -16,10 +17,6 @@ app.commandLine.appendSwitch("disable-speech-api");
 app.commandLine.appendSwitch("disable-print-preview");
 app.commandLine.appendSwitch("disable-logging");
 app.commandLine.appendSwitch("disable-notifications");
-if (process.platform === "linux") {
-  app.commandLine.appendSwitch("enable-transparent-visuals");
-  app.commandLine.appendSwitch("no-zygote");
-}
 
 const path = require("path");
 const fs = require("fs");
@@ -299,15 +296,23 @@ function createWidget() {
     widget.setAlwaysOnTop(true);
   }
 
-  widget.once("ready-to-show", () => {
-    widget.show();
-    widget.focus();
-  });
-
   widget.loadFile(path.join(__dirname, "index.html"));
 
   // Explicitly set bounds to guarantee position and prevent WM centering bugs
   widget.setBounds({ x, y, width: defaultWidth, height: initialHeight });
+
+  widget.once("ready-to-show", () => {
+    if (widget && !widget.isDestroyed()) {
+      widget.show();
+      widget.focus();
+    }
+  });
+  // Fallback show after 200ms in case WM doesn't fire ready-to-show
+  setTimeout(() => {
+    if (widget && !widget.isDestroyed() && !widget.isVisible()) {
+      widget.show();
+    }
+  }, 200);
 
   widget.on("moved", () => {
     if (widget && !widget.isDestroyed()) {

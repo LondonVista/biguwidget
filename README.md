@@ -25,18 +25,18 @@ Unofficial desktop dashboard. Not affiliated with Google, xAI, OpenAI, Anthropic
 ## Platform Status
 
 - 🍏 **macOS** — **Primary & Best Maintained** (native Swift / SwiftUI app, fully tested and actively maintained).
-- 🐧 **Linux** — **Best Maintained** (Electron with hardware glassmorphism & seamless sign-in, fully tested and verified).
-- 🪟 **Windows** — **Experimental (Community Tested)**. Packaged via Electron, but not personally tested by the maintainer on a native Windows machine. Windows users are welcome to test, report issues, or contribute fixes!
+- 🐧 **Linux** — **Best Maintained** (translucent glassmorphism & seamless sign-in, fully tested and verified).
+- 🪟 **Windows** — **Experimental (Community Tested)**. Not personally tested by the maintainer on a native Windows machine. Windows users are welcome to test, report issues, or contribute fixes!
 
 ## Download
 
-Latest release: **[v1.1.2](https://github.com/LondonVista/biguwidget/releases/latest)**
+Latest release: **[v1.1.3](https://github.com/LondonVista/biguwidget/releases/latest)**
 
 | OS | Status | File |
 |---|---|---|
-| **Mac** | Native App (Recommended) | [BigUwidget-1.1.2-Mac.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.1.2-Mac.zip) |
-| **Linux** | Tested & Maintained | [BigUwidget-1.1.2-Linux.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.1.2-Linux.zip) |
-| **Windows** | Experimental (Untested) | [BigUwidget-1.1.2-Windows.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.1.2-Windows.zip) |
+| **Mac** | Native App (Recommended) | [BigUwidget-1.1.2-Mac.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.1.2/BigUwidget-1.1.2-Mac.zip) |
+| **Linux** | Tested & Maintained | [BigUwidget-1.1.3-Linux.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.1.3-Linux.zip) |
+| **Windows** | Experimental (Untested) | [BigUwidget-1.1.3-Windows.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.1.3-Windows.zip) |
 
 Mac: unzip and run **Install.command**, or drag `BigUwidget.app` to `/Applications`.  
 Linux: Node.js 20+, then `./Start.sh`.  

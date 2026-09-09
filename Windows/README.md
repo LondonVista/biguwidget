@@ -22,7 +22,7 @@ npm run dist
 
 Files land in `dist\`:
 
-- `BigUwidget-1.0.9-win-x64.exe` (NSIS installer)
+- `BigUwidget-1.1.2-win-x64.exe` (NSIS installer)
 - portable `.exe`
 
 Build this on Windows (cross-build from Mac/Linux needs Wine).

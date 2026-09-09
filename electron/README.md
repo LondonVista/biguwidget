@@ -1,4 +1,4 @@
-# BigUwidget 1.1.3 (dev workspace)
+# BigUwidget 1.1.4 (dev workspace)
 
 This is the Mac-side Electron workspace (`node_modules` lives here). **Do not copy this folder to Linux or Windows.**
 
@@ -9,7 +9,7 @@ Ship these instead:
 
 | | |
 |---|---|
-| Version | **1.1.3** (matches macOS `CFBundleShortVersionString`) |
+| Version | **1.1.4** (matches macOS `CFBundleShortVersionString`) |
 | App id | `com.lodonvista.biguwidget` |
 | Runtime | Electron **35.7.5** |
 | Packager | electron-builder **25.1.8** |

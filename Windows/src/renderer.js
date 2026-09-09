@@ -12,17 +12,17 @@ function remaining(ts) {
 function resetTone(ts) {
   if (!ts) return "";
   const hours = (ts - Date.now()) / 3600000;
-  if (hours <= 24) return "hot";
-  if (hours <= 48) return "warm";
-  return "cool";
+  if (hours <= 24) return "close"; // < 24h: green
+  if (hours <= 48) return "medium"; // 24h - 48h: yellow
+  return "far"; // > 48h: orange
 }
 
 function fiveTone(ts) {
   if (!ts) return "";
   const mins = (ts - Date.now()) / 60000;
-  if (mins <= 30) return "hot";
-  if (mins <= 90) return "warm";
-  return "ok";
+  if (mins <= 60) return "close"; // <= 1h: green
+  if (mins <= 120) return "medium"; // 1h - 2h: yellow
+  return "far"; // > 2h: orange
 }
 
 function ago(ts) {

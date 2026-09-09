@@ -47,6 +47,9 @@ html, body {
 .pct { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.4px; }
 .used { font-size: 10.5px; opacity: 0.62; }
 .reset, .five { font-size: 10px; opacity: 0.72; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.reset.close, .five.close { color: var(--green); opacity: 1; }
+.reset.medium, .five.medium { color: var(--gold); opacity: 1; }
+.reset.far, .five.far { color: var(--orange); opacity: 1; }
 .reset.hot, .five.hot { color: var(--red); opacity: 1; }
 .reset.warm, .five.warm { color: var(--orange); opacity: 1; }
 .reset.cool { color: var(--gold); opacity: 1; }

@@ -430,16 +430,16 @@ enum UsageParser {
 
     static func resetCountdownColor(until date: Date, now: Date = Date()) -> Color {
         let hours = date.timeIntervalSince(now) / 3600
-        if hours <= 24 { return Color(hex: 0xFF453A) }
-        if hours <= 48 { return Color(hex: 0xFF9F0A) }
-        return Color(hex: 0xFFD60A)
+        if hours <= 24 { return Color(hex: 0x32D74B) } // Near reset (< 24h) -> Vibrant Green
+        if hours <= 48 { return Color(hex: 0xFFD60A) } // Moderate (24h - 48h) -> Gold / Yellow
+        return Color(hex: 0xFF9F0A)                    // Far away (> 48h) -> Orange
     }
 
     static func fiveHourCountdownColor(until date: Date, now: Date = Date()) -> Color {
         let minutes = date.timeIntervalSince(now) / 60
-        if minutes <= 30 { return Color(hex: 0xFF453A) }
-        if minutes <= 90 { return Color(hex: 0xFF9F0A) }
-        return Color(hex: 0x32D74B)
+        if minutes <= 60 { return Color(hex: 0x32D74B) } // Close to 5h reset (<= 1h) -> Vibrant Green
+        if minutes <= 120 { return Color(hex: 0xFFD60A) } // Medium (1h - 2h) -> Gold / Yellow
+        return Color(hex: 0xFF9F0A)                      // Far away (> 2h) -> Orange
     }
 
     static func formatReset(_ date: Date?) -> String {

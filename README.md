@@ -20,7 +20,7 @@ Unofficial desktop dashboard. Not affiliated with Google, xAI, OpenAI, Anthropic
 
 ![BigUwidget demo](docs/demo.gif)
 
-[Full video](https://github.com/LondonVista/biguwidget/raw/main/docs/biguwidget.mp4)
+[▶ Full video on X](https://x.com/London_Vista/status/2097908803475742791?s=20)
 
 ## Platform Status
 

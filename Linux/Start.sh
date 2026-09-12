@@ -26,4 +26,5 @@ if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
   done
 fi
 
-exec npm start
+nohup npm start &>/dev/null &
+disown

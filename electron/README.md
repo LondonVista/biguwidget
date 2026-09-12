@@ -1,52 +1,36 @@
-# BigUwidget 1.1.4 (dev workspace)
+# BigUwidget 1.1.7 — Linux
 
-This is the Mac-side Electron workspace (`node_modules` lives here). **Do not copy this folder to Linux or Windows.**
+Copy **this folder** onto a Linux machine. Do not copy `electron/` or `Windows/`.
 
-Ship these instead:
+BigUwidget on Linux provides pixel-perfect translucent glassmorphism (`backdrop-filter: blur()`), seamless OAuth login, real weekly calendar breakdown (`daily-usage.json`), real-time consumption deltas (`session-deltas.json`), and window position persistence.
 
-- `../Linux/` — copy to a Linux machine, run `./Start.sh`
-- `../Windows/` — copy to a Windows PC, run `Start.bat`
-
-| | |
-|---|---|
-| Version | **1.1.4** (matches macOS `CFBundleShortVersionString`) |
-| App id | `com.lodonvista.biguwidget` |
-| Runtime | Electron **35.7.5** |
-| Packager | electron-builder **25.1.8** |
-| Node | 20 or newer |
-
-Cards: Grok, Grok Bot (Cursor), AGY (Gemini), Claude & GPT (from AGY), optional ChatGPT.
-
-Not affiliated with Google, xAI, OpenAI, or Cursor. Quota endpoints are unofficial and can break.
-
-## Run from source
+## Quick Start
 
 ```bash
-cd BigUwidget/electron
-npm install
-# if Electron’s binary did not download (install scripts blocked):
-node node_modules/electron/install.js
-npm start
+chmod +x Start.sh
+./Start.sh
 ```
 
-The window stays on top. Drag the title row to move it. **Settings** toggles cards and order. **Sign in** opens a browser that shares cookies with the fetchers; close it to refresh. Heart opens [ko-fi.com/london_vista](https://ko-fi.com/london_vista).
+*(or run `npm install && npm start`)*
 
-## Installers
+Requires **Node.js 20+** and `npm`.
 
-Built artifacts land in `electron/dist/` as:
+## Standalone AppImage / .deb
 
-- Linux: `BigUwidget-1.0.3-linux-x64.AppImage`, `BigUwidget-1.0.3-linux-arm64.AppImage`, `.deb` (x64)
-- Windows: NSIS installer + portable `.exe` (x64)
+To build a standalone portable binary:
 
 ```bash
-npm run dist:linux    # run on Linux (or CI)
-npm run dist:win      # run on Windows (cross-build needs Wine)
+npm run dist
 ```
 
-macOS users should keep using `./build.sh` in the repo root, not this Electron shell.
+Generated packages will be in `dist/`:
+- `BigUwidget-1.1.7-linux-x64.AppImage`
+- `BigUwidget-1.1.7-linux-arm64.AppImage`
+- `.deb` (x64)
 
-## What this is not
+## Updates
 
-- Not an App Store / Microsoft Store / Snap listing.
-- Not a pixel-perfect clone of the Mac calendar graphs.
-- Claude.ai, Copilot, Perplexity, OpenRouter are not live cards.
+Settings → **Off / Prompt / Auto**. Prompt is the default. The app checks [GitHub Releases](https://github.com/LondonVista/biguwidget/releases) for newer versions.
+
+Donate: https://ko-fi.com/london_vista  
+Unofficial. Not affiliated with Google, xAI, OpenAI, or Cursor.

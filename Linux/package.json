@@ -14,7 +14,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "start": "electron .",
+    "start": "electron . --no-sandbox --disable-gpu",
     "dist": "electron-builder --linux AppImage deb --publish never"
   },
   "build": {

@@ -1,28 +1,35 @@
-function remaining(ts) {
-  if (!ts) return "";
+function remainingParts(ts) {
+  if (!ts) return { days: "", rest: "" };
   const mins = Math.max(0, Math.floor((ts - Date.now()) / 60000));
   const d = Math.floor(mins / (24 * 60));
   const h = Math.floor((mins % (24 * 60)) / 60);
   const m = mins % 60;
-  if (d > 0) return `${d}d ${h}h ${m}m`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
+  if (d > 0) {
+    return { days: `${d}d`, rest: `${h}h ${m}m` };
+  }
+  if (h > 0) {
+    return { days: `${h}h`, rest: `${m}m` };
+  }
+  return { days: `${m}m`, rest: "" };
 }
 
-function resetTone(ts) {
+function formatResetDate(ts) {
   if (!ts) return "";
-  const hours = (ts - Date.now()) / 3600000;
-  if (hours <= 24) return "close"; // < 24h: green
-  if (hours <= 48) return "medium"; // 24h - 48h: yellow
-  return "far"; // > 48h: orange
-}
-
-function fiveTone(ts) {
-  if (!ts) return "";
-  const mins = (ts - Date.now()) / 60000;
-  if (mins <= 60) return "close"; // <= 1h: green
-  if (mins <= 120) return "medium"; // 1h - 2h: yellow
-  return "far"; // > 2h: orange
+  try {
+    const d = new Date(ts);
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const day = days[d.getDay()];
+    const mon = months[d.getMonth()];
+    const date = d.getDate();
+    let h = d.getHours();
+    const m = String(d.getMinutes()).padStart(2, "0");
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return `on ${day} ${mon} ${date} at ${h}:${m} ${ampm}`;
+  } catch {
+    return "";
+  }
 }
 
 function ago(ts) {
@@ -41,7 +48,7 @@ function fmtPct(n) {
   return r === Math.round(r) ? String(Math.round(r)) : r.toFixed(1);
 }
 
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.6", updatePolicy: "prompt", update: null };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.7", updatePolicy: "prompt", update: null };
 const collapsed = new Set();
 
 function orderedCards() {
@@ -59,22 +66,84 @@ function orderedCards() {
   return list;
 }
 
+function renderDeltas(snap) {
+  const list = snap.recentDeltas;
+  if (!list || !list.length) return "";
+  return list.slice(0, 4).map(d => {
+    const mins = Math.max(0, Math.floor((Date.now() - (d.timestamp || Date.now())) / 60000));
+    const timeStr = mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h`;
+    const valStr = `+${(d.delta || 0).toFixed(2)}%`;
+    return `<div class="delta-row"><span class="delta-time">${timeStr}</span><span class="delta-badge">${valStr}</span></div>`;
+  }).join("");
+}
+
+function renderWeek(snap) {
+  const days = Array.isArray(snap.days) && snap.days.length ? snap.days : [];
+  if (!days.length) {
+    const labels = ["M", "T", "W", "T", "F", "S", "S"];
+    const now = new Date();
+    const todayIdx = (now.getDay() + 6) % 7;
+    let fallback = `<div class="week-row">`;
+    for (let i = 0; i < 7; i++) {
+      const isToday = i === todayIdx;
+      fallback += `<div class="day-col ${isToday ? "today-day" : ""}">
+        ${isToday ? `<div class="day-caret">▲</div><div class="day-lbl"><span class="day-dot">•</span>${labels[i]}</div>` : `<div class="day-lbl">${labels[i]}</div>`}
+        <div class="day-pct">0%</div>
+      </div>`;
+    }
+    fallback += `</div>`;
+    return fallback;
+  }
+
+  let html = `<div class="week-row">`;
+  for (const day of days) {
+    const isToday = !!day.isToday;
+    const isReset = !!day.isReset && !isToday;
+    const hasBonus = (day.accumulatedGain || 0) >= 0.5;
+    const gainInt = Math.round(day.accumulatedGain || 0);
+
+    let cls = "day-col";
+    if (isToday) cls += " today-day";
+    else if (isReset) cls += " target-day";
+
+    html += `<div class="${cls}">`;
+    if (hasBonus) {
+      html += `<div class="day-bonus">+${gainInt}</div>`;
+      html += `<div class="day-lbl">${day.label}</div>`;
+    } else if (isToday) {
+      html += `<div class="day-caret">▲</div>`;
+      html += `<div class="day-lbl"><span class="day-dot">•</span>${day.label}</div>`;
+    } else {
+      html += `<div class="day-lbl">${day.label}</div>`;
+    }
+    const val = Math.round(day.percent || 0);
+    html += `<div class="day-pct">${val}%</div>`;
+    html += `</div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
 function render() {
   const root = document.getElementById("root");
   const enabled = new Set(state.enabled || []);
   const all = orderedCards();
   const cards = all.filter((c) => enabled.has(c.id));
   let html = `<div class="stack">`;
+
+  // Top window bar chrome
   html += `<div class="card drag chrome">
     <div class="row">
       <div class="brand">BigUwidget</div>
-      <div class="ver">${state.version || "1.1.5"}</div>
+      <div class="ver">${state.version || "1.1.6"}</div>
       <div class="space"></div>
       <button class="btn no-drag" data-act="refresh" title="Refresh">↻</button>
+      <button class="btn no-drag" data-act="settings" title="Settings">⚙</button>
       <button class="btn no-drag" data-act="minimize" title="Minimize">−</button>
       <button class="btn no-drag" data-act="quit" title="Quit">✕</button>
     </div>
   </div>`;
+
   if (state.update && state.update.version && (state.updatePolicy || "prompt") !== "off") {
     html += `<div class="card no-drag update">
       <div class="utitle">Update ${state.update.version}</div>
@@ -90,27 +159,24 @@ function render() {
     html += `<div class="card"><div class="muted">No cards enabled. <button class="link" data-act="settings" style="text-decoration:underline">Open Settings</button> to turn services on.</div></div>`;
   }
 
-  let cardIndex = 0;
   for (const card of cards) {
     const snap = (state.snapshots && state.snapshots[card.id]) || { status: "loading" };
     const isCol = collapsed.has(card.id);
-    const isFirstCard = cardIndex === 0;
-    cardIndex++;
 
     html += `<div class="card">`;
-    html += `<div class="row drag"><div class="title">${card.title}</div>`;
+    html += `<div class="card-header drag">
+      <div class="title">${card.title}</div>
+      <div class="row no-drag">`;
     if (snap.status === "needsLogin") {
-      html += `<span class="offline no-drag" data-act="login" data-id="${card.id}">offline</span>`;
+      html += `<span class="offline" data-act="login" data-id="${card.id}">offline</span>`;
     }
-    html += `<div class="space"></div>`;
-    if (isFirstCard) {
-      html += `<button class="btn no-drag" data-act="settings" title="Settings">⚙</button>`;
-    }
-    html += `<button class="btn no-drag" data-act="collapse" data-id="${card.id}" title="Collapse">${isCol ? "▾" : "▴"}</button>`;
     if (snap.status !== "ready") {
-      html += `<button class="btn no-drag" data-act="login" data-id="${card.id}" title="Sign in">👤</button>`;
+      html += `<button class="btn" data-act="login" data-id="${card.id}" title="Sign in">👤</button>`;
     }
-    html += `</div>`;
+    html += `<button class="btn chevron-btn" data-act="collapse" data-id="${card.id}" title="Collapse">${isCol ? "▾" : "▴"}</button>
+      </div>
+    </div>`;
+
     if (isCol && snap.status === "ready") {
       html += `<div class="mini"><span class="mpct">${fmtPct(snap.weekly)}%</span> used
         <span class="space"></span><span class="ago no-drag" data-act="fetch" data-id="${card.id}">${ago(snap.fetchedAt)}</span></div>`;
@@ -121,17 +187,49 @@ function render() {
     } else if (snap.status === "error") {
       html += `<div class="warn no-drag" data-act="fetch" data-id="${card.id}">${snap.error || "Couldn't refresh"}</div>`;
     } else {
-      html += `<div class="row"><span class="pct">${fmtPct(snap.weekly)}</span><span class="used">% used</span></div>`;
-      if (snap.reset) html += `<div class="reset ${resetTone(snap.reset)}">Resets in ${remaining(snap.reset)}</div>`;
-      html += `<div class="bar"><span style="width:${Math.min(100, Math.max(0, snap.weekly || 0))}%"></span></div>`;
-      if (snap.five != null) {
-        const fr = snap.fiveReset ? ` · reset in ${remaining(snap.fiveReset)}` : "";
-        html += `<div class="five ${fiveTone(snap.fiveReset)}">5h: ${fmtPct(snap.five)}% used${fr}</div>`;
+      const resetP = remainingParts(snap.reset);
+      const resetStr = resetP.days ? `<span class="hl-orange">${resetP.days}</span> ${resetP.rest}` : resetP.rest;
+      const dateSubtitle = snap.reset ? formatResetDate(snap.reset) : "";
+      const deltasHtml = renderDeltas(snap);
+
+      // 1. Top Section: Big percentage & Resets + Deltas
+      html += `<div class="top-section">
+        <div class="main-metrics">
+          <div class="pct-wrap">
+            <span class="pct">${fmtPct(snap.weekly)}%</span>
+            <span class="used">used</span>
+          </div>
+          ${snap.reset ? `<div class="reset-info">Resets in ${resetStr}</div>` : ""}
+          ${dateSubtitle ? `<div class="reset-date">${dateSubtitle}</div>` : ""}
+        </div>
+        ${deltasHtml ? `<div class="deltas-stack">${deltasHtml}</div>` : ""}
+      </div>`;
+
+      // 2. Progress Bar
+      html += `<div class="bar-wrap">
+        <div class="bar"><span style="width:${Math.min(100, Math.max(0, snap.weekly || 0))}%"></span></div>
+        <div class="bar-max">100%</div>
+      </div>`;
+
+      // 3. 5h Window
+      if (snap.five != null || snap.fiveReset != null) {
+        const fiveP = remainingParts(snap.fiveReset);
+        const fiveResetStr = fiveP.days ? `<span class="hl-orange">${fiveP.days} ${fiveP.rest}</span>` : `<span class="hl-orange">${fiveP.rest}</span>`;
+        const fiveUsed = fmtPct(snap.five || 0);
+        html += `<div class="five-row">5h: ${fiveUsed}% used · reset in ${fiveResetStr}</div>`;
       }
-      const left = Math.max(0, 100 - (snap.weekly || 0));
-      html += `<div class="foot"><span class="today">${left > 0.05 ? `weekly ${fmtPct(left)}% left` : "weekly 0% left"}</span>
-        <span class="ago no-drag" data-act="fetch" data-id="${card.id}">${ago(snap.fetchedAt)}</span></div>`;
+
+      // 4. 7-Day Weekly Breakdown (Real Calendar Data)
+      html += renderWeek(snap);
+
+      // 5. Footer: Real today left & refreshed time
+      const todayLeftVal = snap.todayLeft != null ? snap.todayLeft : Math.max(0, 100 - (snap.weekly || 0)) / 7;
+      html += `<div class="foot">
+        <span class="today">today: ${todayLeftVal.toFixed(1)}% left</span>
+        <span class="ago no-drag" data-act="fetch" data-id="${card.id}">${ago(snap.fetchedAt)}</span>
+      </div>`;
     }
+
     html += `</div>`;
   }
 
@@ -187,7 +285,6 @@ async function boot() {
     state = s;
     render();
   });
-  // Lightweight 60s ticker for relative time labels without rebuilding the DOM
   setInterval(() => {
     document.querySelectorAll(".ago[data-id]").forEach((el) => {
       const id = el.getAttribute("data-id");
@@ -196,7 +293,7 @@ async function boot() {
         el.textContent = ago(snap.fetchedAt);
       }
     });
-  }, 60000);
+  }, 10000);
 }
 
 boot();

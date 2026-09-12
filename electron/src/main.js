@@ -23,6 +23,8 @@ const fs = require("fs");
 const fetchers = require("./fetchers");
 const updater = require("./updater");
 
+const tracker = require("./tracker");
+
 const DONATE = "https://ko-fi.com/london_vista";
 const FEEDBACK = `https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v${updater.VERSION}&body=%2A%2AOS%2A%2A%3A+${process.platform}%0A%2A%2AVersion%2A%2A%3A+v${updater.VERSION}%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A`;
 const VERSION = updater.VERSION;
@@ -61,7 +63,7 @@ let loginWin = null;
 let settingsWin = null;
 
 function emptySnap(id) {
-  return { id, status: "loading", weekly: 0, five: null, reset: null, fiveReset: null, fetchedAt: 0 };
+  return { id, status: "loading", weekly: 0, five: null, reset: null, fiveReset: null, fetchedAt: 0, days: [], recentDeltas: [], todayLeft: null, todayUsed: 0 };
 }
 
 function publicState() {
@@ -95,6 +97,9 @@ function applyResult(id, res) {
     };
     return;
   }
+  const prevSnap = state.snapshots[id];
+  const tracked = tracker.processUsageUpdate(app.getPath("userData"), id, res, prevSnap);
+
   state.snapshots[id] = {
     id,
     status: "ready",
@@ -104,6 +109,10 @@ function applyResult(id, res) {
     fiveReset: res.fiveReset || null,
     plan: res.plan || CARDS.find((c) => c.id === id)?.title,
     fetchedAt: Date.now(),
+    days: tracked.days,
+    recentDeltas: tracked.recentDeltas,
+    todayLeft: tracked.todayLeft,
+    todayUsed: tracked.todayUsed,
   };
 }
 
@@ -246,7 +255,7 @@ function openLogin(id) {
 function createWidget() {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
-  const defaultWidth = 236;
+  const defaultWidth = 254;
   const initialHeight = Math.min(state.bounds?.height || 420, screenHeight - 60);
 
   // Default to screen center
@@ -254,10 +263,23 @@ function createWidget() {
   let y = Math.round((screenHeight - initialHeight) / 2);
 
   if (state.bounds && typeof state.bounds.x === "number" && typeof state.bounds.y === "number") {
-    // Only use saved x, y if within visible screen boundaries
-    if (state.bounds.x >= 0 && state.bounds.x < screenWidth - 60 && state.bounds.y >= 0 && state.bounds.y < screenHeight - 60) {
-      x = state.bounds.x;
-      y = state.bounds.y;
+    try {
+      const display = screen.getDisplayMatching(state.bounds);
+      const { x: dx, y: dy, width: dw, height: dh } = display.workArea;
+      if (
+        state.bounds.x >= dx - 200 &&
+        state.bounds.x < dx + dw - 20 &&
+        state.bounds.y >= dy - 20 &&
+        state.bounds.y < dy + dh - 20
+      ) {
+        x = state.bounds.x;
+        y = state.bounds.y;
+      }
+    } catch {
+      if (state.bounds.x >= 0 && state.bounds.x < screenWidth - 40 && state.bounds.y >= 0 && state.bounds.y < screenHeight - 40) {
+        x = state.bounds.x;
+        y = state.bounds.y;
+      }
     }
   }
 
@@ -266,8 +288,8 @@ function createWidget() {
     height: initialHeight,
     x: x,
     y: y,
-    minWidth: 220,
-    maxWidth: 280,
+    minWidth: 240,
+    maxWidth: 320,
     minHeight: 100,
     maxHeight: screenHeight - 40,
     frame: false,
@@ -317,19 +339,21 @@ function createWidget() {
     }
   }, 200);
 
-  widget.on("moved", () => {
+  const saveBounds = () => {
     if (widget && !widget.isDestroyed()) {
       const b = widget.getBounds();
-      state.bounds = { ...(state.bounds || {}), x: b.x, y: b.y };
+      state.bounds = { ...(state.bounds || {}), x: b.x, y: b.y, width: b.width, height: b.height };
       saveState();
     }
-  });
+  };
+
+  widget.on("move", saveBounds);
+  widget.on("moved", saveBounds);
+  widget.on("resize", saveBounds);
+  widget.on("resized", saveBounds);
 
   widget.on("close", () => {
-    if (widget && !widget.isDestroyed()) {
-      state.bounds = widget.getBounds();
-      saveState();
-    }
+    saveBounds();
   });
 
   widget.on("closed", () => {

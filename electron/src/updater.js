@@ -6,7 +6,7 @@ const { spawn, spawnSync } = require("child_process");
 const { pipeline } = require("stream/promises");
 const { Readable } = require("stream");
 
-const VERSION = "1.1.6";
+const VERSION = "1.1.7";
 const FEED = "https://github.com/LondonVista/biguwidget/releases/latest/download/latest.json";
 const GITHUB_API = "https://api.github.com/repos/LondonVista/biguwidget/releases/latest";
 const PAGE = "https://github.com/LondonVista/biguwidget/releases/latest";

@@ -1,10 +1,10 @@
 {
-  "version": "1.1.6",
-  "notes": "BigUwidget 1.1.6: Automatic Google OAuth token refresh across Linux and Windows for AGY & Claude/GPT quota cards, centered settings modal, and minimize button.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.1.6",
+  "version": "1.1.7",
+  "notes": "BigUwidget 1.1.7: Linux UI update matching native S1/S2/S3/S4 layout, real daily calendar usage tracker (daily-usage.json), real session consumption deltas (session-deltas.json), window position persistence across restarts.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.1.7",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.6/BigUwidget-1.1.3-Mac.zip",
-    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.6/BigUwidget-1.1.6-Linux.zip",
-    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.6/BigUwidget-1.1.6-Windows.zip"
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.7/BigUwidget-1.1.7-Mac.zip",
+    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.7/BigUwidget-1.1.7-Linux.zip",
+    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.7/BigUwidget-1.1.7-Windows.zip"
   }
 }

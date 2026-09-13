@@ -19,8 +19,9 @@ Unofficial desktop dashboard. Not affiliated with Google, xAI, OpenAI, Anthropic
 
 [▶ Full video on X](https://x.com/London_Vista/status/2097908803475742791?s=20)
 
-## Features & What's New in v1.1.7
+## Features & What's New in v1.1.8
 
+- 🔍 **Interactive Zoom & Scale Slider**: Smoothly scale the entire widget from 70% to 150% directly from Settings, complete with step buttons (`−` / `+`) and a 100% reset button.
 - 📊 **Real Weekly Calendar Breakdown**: Live Monday-to-Sunday daily tracking using `daily-usage.json` with reset weekday indicator, active today indicator, and intra-week bonus quota gain badges (`+N`).
 - ⚡ **Real Vertical Delta Badges**: Live consumption log tracking positive usage changes into `session-deltas.json` with timestamps (`14m +0.70%`, etc.).
 - 🎯 **Native Card Layout across Linux & Windows**: Refined hero quota numbers, progress bars with 100% cap indicators, highlighted reset dates, and 5h rolling limit counters.
@@ -34,13 +35,13 @@ Unofficial desktop dashboard. Not affiliated with Google, xAI, OpenAI, Anthropic
 
 ## Download
 
-Latest release: **[v1.1.7](https://github.com/LondonVista/biguwidget/releases/latest)**
+Latest release: **[v1.1.8](https://github.com/LondonVista/biguwidget/releases/latest)**
 
 | OS | Status | File |
 |---|---|---|
 | **Mac** | Native App (Recommended) | [BigUwidget-1.1.5-Mac.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.1.7/BigUwidget-1.1.5-Mac.zip) |
-| **Linux** | Tested & Maintained | [BigUwidget-1.1.7-Linux.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.1.7-Linux.zip) |
-| **Windows** | Experimental (Untested) | [BigUwidget-1.1.7-Windows.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.1.7-Windows.zip) |
+| **Linux** | Tested & Maintained | [BigUwidget-1.1.8-Linux.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.1.8-Linux.zip) |
+| **Windows** | Experimental (Untested) | [BigUwidget-1.1.8-Windows.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.1.8-Windows.zip) |
 
 - **Mac**: unzip and run **Install.command**, or drag `BigUwidget.app` to `/Applications`.  
 - **Linux**: Node.js 20+, then `./Start.sh` (or `npm install && npm start`).  

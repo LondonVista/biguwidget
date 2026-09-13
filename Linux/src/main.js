@@ -297,7 +297,7 @@ function createWidget() {
     frame: false,
     transparent: true,
     alwaysOnTop: true,
-    resizable: false,
+    resizable: true,
     maximizable: false,
     fullscreenable: false,
     skipTaskbar: false,
@@ -322,6 +322,14 @@ function createWidget() {
   } else {
     widget.setAlwaysOnTop(true);
   }
+
+  widget.webContents.on("did-finish-load", () => {
+    if (widget && !widget.isDestroyed()) {
+      try {
+        widget.webContents.setZoomFactor(state.zoom || 1.0);
+      } catch {}
+    }
+  });
 
   widget.loadFile(path.join(__dirname, "index.html"));
 
@@ -605,6 +613,9 @@ ipcMain.handle("set-zoom", (_e, zoom) => {
   saveState();
   broadcast();
   if (widget && !widget.isDestroyed()) {
+    try {
+      widget.webContents.setZoomFactor(state.zoom);
+    } catch {}
     const zoomVal = typeof state.zoom === "number" ? state.zoom : 1.0;
     const targetW = Math.round(254 * zoomVal);
     const [x, y] = widget.getPosition();
@@ -620,7 +631,7 @@ ipcMain.handle("fit-height", (_e, height) => {
     const maxHeight = primaryDisplay.workAreaSize.height - 40;
     const zoomVal = typeof state.zoom === "number" ? state.zoom : 1.0;
     const targetW = Math.round(254 * zoomVal);
-    const targetH = Math.min(Math.max(100, Math.ceil(height)), maxHeight);
+    const targetH = Math.min(Math.max(100, Math.ceil(height * zoomVal)), maxHeight);
     const [x, y] = widget.getPosition();
     widget.setBounds({ x, y, width: targetW, height: targetH });
   }

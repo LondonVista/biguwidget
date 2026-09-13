@@ -1,7 +1,8 @@
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.8", updatePolicy: "prompt", update: null, zoom: 1.0 };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.9", updatePolicy: "prompt", update: null, zoom: 1.0 };
 let isCheckingUpdates = false;
 let checkStatusMsg = "";
 let checkStatusTimer = null;
+let isInteractingWithSlider = false;
 
 function orderedCards() {
   const byId = Object.fromEntries((state.cards || []).map((c) => [c.id, c]));
@@ -18,9 +19,35 @@ function orderedCards() {
   return list;
 }
 
+function updateZoomControlsOnly() {
+  const slider = document.getElementById("zoom-slider");
+  const lbl = document.getElementById("zoom-lbl");
+  const resetBtn = document.querySelector("[data-act='zoom-reset']");
+  const currentZoom = typeof state.zoom === "number" ? state.zoom : 1.0;
+  const zoomPct = Math.round(currentZoom * 100);
+
+  if (slider && !isInteractingWithSlider && document.activeElement !== slider) {
+    slider.value = zoomPct;
+  }
+  if (lbl) {
+    lbl.textContent = `${zoomPct}%`;
+  }
+  if (resetBtn) {
+    if (zoomPct === 100) resetBtn.classList.add("on");
+    else resetBtn.classList.remove("on");
+  }
+}
+
 function renderSettings() {
   const container = document.getElementById("settings-modal");
   if (!container) return;
+
+  const slider = document.getElementById("zoom-slider");
+  if (slider && (isInteractingWithSlider || document.activeElement === slider)) {
+    updateZoomControlsOnly();
+    return;
+  }
+
   const enabled = new Set(state.enabled || []);
   const all = orderedCards();
   const currentZoom = typeof state.zoom === "number" ? state.zoom : 1.0;
@@ -82,12 +109,22 @@ function renderSettings() {
 
   container.innerHTML = html;
 
-  const slider = document.getElementById("zoom-slider");
-  if (slider) {
-    slider.addEventListener("input", (e) => {
+  const newSlider = document.getElementById("zoom-slider");
+  if (newSlider) {
+    newSlider.addEventListener("mousedown", () => { isInteractingWithSlider = true; });
+    newSlider.addEventListener("touchstart", () => { isInteractingWithSlider = true; });
+    window.addEventListener("mouseup", () => { isInteractingWithSlider = false; });
+    window.addEventListener("touchend", () => { isInteractingWithSlider = false; });
+
+    newSlider.addEventListener("input", (e) => {
       const val = parseInt(e.target.value, 10);
       const lbl = document.getElementById("zoom-lbl");
       if (lbl) lbl.textContent = `${val}%`;
+      const resetBtn = document.querySelector("[data-act='zoom-reset']");
+      if (resetBtn) {
+        if (val === 100) resetBtn.classList.add("on");
+        else resetBtn.classList.remove("on");
+      }
       if (window.bigu && typeof window.bigu.setZoom === "function") {
         window.bigu.setZoom(val / 100);
       }

@@ -48,7 +48,7 @@ function fmtPct(n) {
   return r === Math.round(r) ? String(Math.round(r)) : r.toFixed(1);
 }
 
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.7", updatePolicy: "prompt", update: null };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.8", updatePolicy: "prompt", update: null, zoom: 1.0 };
 const collapsed = new Set();
 
 function orderedCards() {
@@ -135,7 +135,7 @@ function render() {
   html += `<div class="card drag chrome">
     <div class="row">
       <div class="brand">BigUwidget</div>
-      <div class="ver">${state.version || "1.1.7"}</div>
+      <div class="ver">${state.version || "1.1.8"}</div>
       <div class="space"></div>
       <button class="btn no-drag" data-act="refresh" title="Refresh">↻</button>
       <button class="btn no-drag" data-act="settings" title="Settings">⚙</button>
@@ -237,11 +237,14 @@ function render() {
     html += `<div class="card add no-drag"><button class="addbtn" data-act="add" data-id="chatGPT">+ Add ChatGPT</button></div>`;
   }
   html += `</div>`;
-  root.innerHTML = html;
+  const zoom = typeof state.zoom === "number" ? state.zoom : 1.0;
+  root.style.zoom = zoom;
+  document.documentElement.style.setProperty("--widget-zoom", zoom);
 
   if (window.bigu && typeof window.bigu.fitHeight === "function") {
     requestAnimationFrame(() => {
-      const h = root.offsetHeight;
+      const rect = root.getBoundingClientRect();
+      const h = rect.height || (root.offsetHeight * zoom);
       if (h > 0) {
         window.bigu.fitHeight(h + 8);
       }

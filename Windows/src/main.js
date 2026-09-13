@@ -47,7 +47,7 @@ function loadState() {
   try {
     return JSON.parse(fs.readFileSync(statePath(), "utf8"));
   } catch {
-    return { enabled: DEFAULT_ENABLED, order: DEFAULT_ENABLED, snapshots: {}, bounds: null, updatePolicy: "prompt", agyToken: null };
+    return { enabled: DEFAULT_ENABLED, order: DEFAULT_ENABLED, snapshots: {}, bounds: null, updatePolicy: "prompt", agyToken: null, zoom: 1.0 };
   }
 }
 
@@ -79,6 +79,7 @@ function publicState() {
     snapshots,
     updatePolicy: state.updatePolicy || "prompt",
     update: state.update || null,
+    zoom: typeof state.zoom === "number" ? state.zoom : 1.0,
   };
 }
 
@@ -255,8 +256,9 @@ function openLogin(id) {
 function createWidget() {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
-  const defaultWidth = 254;
-  const initialHeight = Math.min(state.bounds?.height || 420, screenHeight - 60);
+  const zoom = typeof state.zoom === "number" ? state.zoom : 1.0;
+  const defaultWidth = Math.round(254 * zoom);
+  const initialHeight = Math.min(state.bounds?.height || Math.round(420 * zoom), screenHeight - 60);
 
   // Default to screen center
   let x = Math.round((screenWidth - defaultWidth) / 2);
@@ -288,8 +290,8 @@ function createWidget() {
     height: initialHeight,
     x: x,
     y: y,
-    minWidth: 240,
-    maxWidth: 320,
+    minWidth: 180,
+    maxWidth: 420,
     minHeight: 100,
     maxHeight: screenHeight - 40,
     frame: false,
@@ -370,7 +372,7 @@ function openSettingsWindow() {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
   const winWidth = 320;
-  const winHeight = 520;
+  const winHeight = 560;
   const x = Math.round((screenWidth - winWidth) / 2);
   const y = Math.round((screenHeight - winHeight) / 2);
 
@@ -436,6 +438,7 @@ app.whenReady().then(() => {
     bounds: loaded.bounds || null,
     updatePolicy: loaded.updatePolicy || "prompt",
     agyToken: loaded.agyToken || null,
+    zoom: typeof loaded.zoom === "number" ? loaded.zoom : 1.0,
     update: null,
   };
   createWidget();
@@ -596,14 +599,30 @@ ipcMain.handle("close-login", () => {
   return true;
 });
 
+ipcMain.handle("set-zoom", (_e, zoom) => {
+  const z = Math.min(1.5, Math.max(0.7, typeof zoom === "number" ? zoom : 1.0));
+  state.zoom = Math.round(z * 100) / 100;
+  saveState();
+  broadcast();
+  if (widget && !widget.isDestroyed()) {
+    const zoomVal = typeof state.zoom === "number" ? state.zoom : 1.0;
+    const targetW = Math.round(254 * zoomVal);
+    const [x, y] = widget.getPosition();
+    const [, h] = widget.getSize();
+    widget.setBounds({ x, y, width: targetW, height: h });
+  }
+  return publicState();
+});
+
 ipcMain.handle("fit-height", (_e, height) => {
   if (widget && !widget.isDestroyed() && typeof height === "number" && height > 50) {
     const primaryDisplay = screen.getPrimaryDisplay();
     const maxHeight = primaryDisplay.workAreaSize.height - 40;
+    const zoomVal = typeof state.zoom === "number" ? state.zoom : 1.0;
+    const targetW = Math.round(254 * zoomVal);
     const targetH = Math.min(Math.max(100, Math.ceil(height)), maxHeight);
-    const [w] = widget.getSize();
     const [x, y] = widget.getPosition();
-    widget.setSize(w, targetH);
+    widget.setBounds({ x, y, width: targetW, height: targetH });
   }
   return true;
 });

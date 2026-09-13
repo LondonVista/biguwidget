@@ -1,4 +1,4 @@
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.7", updatePolicy: "prompt", update: null };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.8", updatePolicy: "prompt", update: null, zoom: 1.0 };
 let isCheckingUpdates = false;
 let checkStatusMsg = "";
 let checkStatusTimer = null;
@@ -23,6 +23,8 @@ function renderSettings() {
   if (!container) return;
   const enabled = new Set(state.enabled || []);
   const all = orderedCards();
+  const currentZoom = typeof state.zoom === "number" ? state.zoom : 1.0;
+  const zoomPct = Math.round(currentZoom * 100);
 
   let html = `
     <div class="row drag" style="margin-bottom: 8px;">
@@ -44,6 +46,17 @@ function renderSettings() {
     `;
   }
 
+  // Zoom / Scale Slider Row
+  html += `
+    <div class="shelp" style="margin-top: 12px; margin-bottom: 6px;">Widget Scale (<span id="zoom-lbl" style="color: var(--cyan); font-weight: 700;">${zoomPct}%</span>)</div>
+    <div class="srow zoom-row">
+      <button class="btn no-drag zoom-btn" data-act="zoom-step" data-step="-0.05" title="Zoom out">−</button>
+      <input type="range" class="zoom-slider no-drag" min="70" max="150" step="5" value="${zoomPct}" id="zoom-slider" />
+      <button class="btn no-drag zoom-btn" data-act="zoom-step" data-step="0.05" title="Zoom in">+</button>
+      <button class="tog no-drag reset-zoom ${zoomPct === 100 ? "on" : ""}" data-act="zoom-reset" title="Reset to 100%">100%</button>
+    </div>
+  `;
+
   const pol = state.updatePolicy || "prompt";
   html += `
     <div class="shelp" style="margin-top: 12px; margin-bottom: 6px;">Updates (GitHub)</div>
@@ -62,12 +75,24 @@ function renderSettings() {
         <button class="link no-drag" data-act="donate">Donate</button>
         <button class="link fb no-drag" data-act="feedback">Feedback</button>
       </div>
-      <span class="sver">v${state.version || "1.1.7"}</span>
+      <span class="sver">v${state.version || "1.1.8"}</span>
       <button class="done no-drag" data-act="close">Done</button>
     </div>
   `;
 
   container.innerHTML = html;
+
+  const slider = document.getElementById("zoom-slider");
+  if (slider) {
+    slider.addEventListener("input", (e) => {
+      const val = parseInt(e.target.value, 10);
+      const lbl = document.getElementById("zoom-lbl");
+      if (lbl) lbl.textContent = `${val}%`;
+      if (window.bigu && typeof window.bigu.setZoom === "function") {
+        window.bigu.setZoom(val / 100);
+      }
+    });
+  }
 }
 
 document.addEventListener("click", async (e) => {
@@ -92,6 +117,15 @@ document.addEventListener("click", async (e) => {
   if (act === "login" && id) {
     window.bigu.setEnabled(id, true);
     window.bigu.login(id);
+  }
+  if (act === "zoom-step") {
+    const step = parseFloat(t.getAttribute("data-step") || "0");
+    const current = typeof state.zoom === "number" ? state.zoom : 1.0;
+    const next = Math.min(1.5, Math.max(0.7, Math.round((current + step) * 100) / 100));
+    window.bigu.setZoom(next);
+  }
+  if (act === "zoom-reset") {
+    window.bigu.setZoom(1.0);
   }
   if (act === "update-policy" && id) {
     window.bigu.setUpdatePolicy(id);

@@ -7,8 +7,8 @@ import WebKit
 enum BigUwidgetConfig {
     /// Ko-fi / GitHub Sponsors / PayPal. Donate is hidden if this is nil.
     static let donateURL = URL(string: "https://ko-fi.com/london_vista")
-    static let feedbackURL = URL(string: "https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v1.1.4&body=%2A%2AOS%2A%2A%3A+macOS%0A%2A%2AVersion%2A%2A%3A+v1.1.4%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A")
-    static let appVersion = "1.1.4"
+    static let feedbackURL = URL(string: "https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v1.1.5&body=%2A%2AOS%2A%2A%3A+macOS%0A%2A%2AVersion%2A%2A%3A+v1.1.5%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A")
+    static let appVersion = "1.1.5"
     static let updateFeedURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest/download/latest.json")
     static let githubReleasesURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest")
     static let githubAPIURL = URL(string: "https://api.github.com/repos/LondonVista/biguwidget/releases/latest")
@@ -2880,9 +2880,9 @@ struct ServiceCardView: View {
                     }
                 }) {
                     Image(systemName: subStore.isCollapsed ? "chevron.down" : "chevron.up")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(Color.white.opacity(0.45))
-                        .frame(width: 32, height: 28)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Color.white.opacity(0.55))
+                        .frame(width: isMasterTop ? 28 : 36, height: 28)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -3126,7 +3126,7 @@ struct ServiceCardView: View {
                                 .padding(.horizontal, 4)
                                 .overlay(alignment: .topTrailing) {
                                     weekStripToggle
-                                        .offset(x: 6, y: showsFive ? -11 : -6)
+                                        .offset(x: -5, y: showsFive ? -14 : -9)
                                 }
                         }
                         VStack(alignment: .leading, spacing: 2) {
@@ -3195,9 +3195,9 @@ struct ServiceCardView: View {
             }
         }) {
             Image(systemName: isWeekHidden ? "chevron.down" : "chevron.up")
-                .font(.system(size: 10, weight: .bold))
+                .font(.system(size: 8.5, weight: .bold))
                 .foregroundStyle(Color.white.opacity(0.55))
-                .frame(width: 32, height: 20)
+                .frame(width: 20, height: 14)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

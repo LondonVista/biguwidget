@@ -3,7 +3,7 @@
   "notes": "BigUwidget 1.1.7: Linux UI update matching native S1/S2/S3/S4 layout, real daily calendar usage tracker (daily-usage.json), real session consumption deltas (session-deltas.json), window position persistence across restarts.",
   "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.1.7",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.7/BigUwidget-1.1.7-Mac.zip",
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.7/BigUwidget-1.1.4-Mac.zip",
     "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.7/BigUwidget-1.1.7-Linux.zip",
     "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.7/BigUwidget-1.1.7-Windows.zip"
   }

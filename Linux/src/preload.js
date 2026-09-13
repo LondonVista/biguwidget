@@ -1,13 +1,14 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("bigu", {
-  version: "1.1.6",
+  version: "1.1.8",
   fetchAll: () => ipcRenderer.invoke("fetch-all"),
   fetchOne: (id) => ipcRenderer.invoke("fetch-one", id),
   login: (id) => ipcRenderer.invoke("login", id),
   getState: () => ipcRenderer.invoke("get-state"),
   setEnabled: (id, on) => ipcRenderer.invoke("set-enabled", id, on),
   setOrder: (ids) => ipcRenderer.invoke("set-order", ids),
+  setZoom: (zoom) => ipcRenderer.invoke("set-zoom", zoom),
   openDonate: () => ipcRenderer.invoke("open-donate"),
   openFeedback: () => ipcRenderer.invoke("open-feedback"),
   minimize: () => ipcRenderer.invoke("minimize"),

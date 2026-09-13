@@ -135,7 +135,7 @@ function render() {
   html += `<div class="card drag chrome">
     <div class="row">
       <div class="brand">BigUwidget</div>
-      <div class="ver">${state.version || "1.1.6"}</div>
+      <div class="ver">${state.version || "1.1.7"}</div>
       <div class="space"></div>
       <button class="btn no-drag" data-act="refresh" title="Refresh">↻</button>
       <button class="btn no-drag" data-act="settings" title="Settings">⚙</button>

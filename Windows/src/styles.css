@@ -30,8 +30,9 @@ html, body {
 #root {
   padding: 8px;
   width: 100%;
-  max-width: 270px;
   overflow: hidden !important;
+  zoom: var(--widget-zoom, 1);
+  transform-origin: top left;
 }
 .stack { display: flex; flex-direction: column; gap: 8px; }
 .card {
@@ -315,3 +316,60 @@ html, body {
   font-size: 11px;
 }
 .link { background: none; border: none; color: #ff8b82; cursor: pointer; font-weight: 600; font-size: 11px; padding: 0; }
+
+/* Settings Modal & Controls */
+.settings .stitle { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.settings .shelp { font-size: 10px; opacity: 0.5; margin-bottom: 10px; line-height: 1.35; }
+.srow { display: flex; align-items: center; gap: 6px; padding: 6px 0; border-top: 1px solid rgba(255,255,255,0.06); }
+.sname { flex: 1; font-size: 11px; font-weight: 600; }
+.tog {
+  border: none;
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.45);
+}
+.tog.on { background: rgba(50,215,75,0.2); color: var(--green); }
+.sfoot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+.sfoot-links { display: flex; align-items: center; gap: 8px; }
+.sver { font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; opacity: 0.45; font-weight: 500; }
+
+/* Zoom slider row */
+.zoom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.zoom-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.18);
+  outline: none;
+  cursor: pointer;
+}
+.zoom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--cyan);
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(36, 193, 224, 0.6);
+}
+.zoom-btn {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 1px 6px;
+  line-height: 1;
+}
+.reset-zoom {
+  font-size: 9.5px;
+  padding: 3px 6px;
+}

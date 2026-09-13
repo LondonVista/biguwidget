@@ -31,8 +31,6 @@ html, body {
   padding: 8px;
   width: 100%;
   overflow: hidden !important;
-  zoom: var(--widget-zoom, 1);
-  transform-origin: top left;
 }
 .stack { display: flex; flex-direction: column; gap: 8px; }
 .card {

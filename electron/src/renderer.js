@@ -48,7 +48,7 @@ function fmtPct(n) {
   return r === Math.round(r) ? String(Math.round(r)) : r.toFixed(1);
 }
 
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.8", updatePolicy: "prompt", update: null, zoom: 1.0 };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.9", updatePolicy: "prompt", update: null, zoom: 1.0 };
 const collapsed = new Set();
 
 function orderedCards() {
@@ -237,14 +237,15 @@ function render() {
     html += `<div class="card add no-drag"><button class="addbtn" data-act="add" data-id="chatGPT">+ Add ChatGPT</button></div>`;
   }
   html += `</div>`;
-  const zoom = typeof state.zoom === "number" ? state.zoom : 1.0;
-  root.style.zoom = zoom;
-  document.documentElement.style.setProperty("--widget-zoom", zoom);
+  root.innerHTML = html;
+
+  if (window.bigu && typeof window.bigu.setZoomFactor === "function") {
+    window.bigu.setZoomFactor(typeof state.zoom === "number" ? state.zoom : 1.0);
+  }
 
   if (window.bigu && typeof window.bigu.fitHeight === "function") {
     requestAnimationFrame(() => {
-      const rect = root.getBoundingClientRect();
-      const h = rect.height || (root.offsetHeight * zoom);
+      const h = root.scrollHeight || root.offsetHeight || root.getBoundingClientRect().height;
       if (h > 0) {
         window.bigu.fitHeight(h + 8);
       }

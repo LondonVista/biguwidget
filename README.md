@@ -24,32 +24,26 @@ Unofficial desktop dashboard. Not affiliated with Google, xAI, OpenAI, Anthropic
 
 [▶ Full video on X](https://x.com/London_Vista/status/2097908803475742791?s=20)
 
-## Features & What's New in v1.1.9
+## Versions (do not mix)
 
-- 🔍 **Interactive Zoom & Scale Slider**: Smoothly scale the entire widget from 70% to 150% directly from Settings, complete with step buttons (`−` / `+`) and a 100% reset button.
-- 📊 **Real Weekly Calendar Breakdown**: Live Monday-to-Sunday daily tracking using `daily-usage.json` with reset weekday indicator, active today indicator, and intra-week bonus quota gain badges (`+N`).
-- ⚡ **Real Vertical Delta Badges**: Live consumption log tracking positive usage changes into `session-deltas.json` with timestamps (`14m +0.70%`, etc.).
-- 🎯 **Native Card Layout across Linux & Windows**: Refined hero quota numbers, progress bars with 100% cap indicators, highlighted reset dates, and 5h rolling limit counters.
-- 📌 **Window Position Persistence**: Automatically saves and restores exact desktop coordinates across restarts.
+| Platform | Version | Release |
+|---|---|---|
+| **Mac** (native Swift) | **1.1.5** | [v1.1.5](https://github.com/LondonVista/biguwidget/releases/tag/v1.1.5) |
+| **Linux** | **1.1.9** | [v1.1.9](https://github.com/LondonVista/biguwidget/releases/tag/v1.1.9) |
+| **Windows** | **1.1.9** | [v1.1.9](https://github.com/LondonVista/biguwidget/releases/tag/v1.1.9) |
 
-## Platform Status
-
-- 🍏 **macOS** — **Primary & Best Maintained** (native Swift / SwiftUI app, fully tested and actively maintained).
-- 🐧 **Linux** — **Best Maintained** (translucent glassmorphism, real calendar tracking, persistent window bounds, and seamless sign-in).
-- 🪟 **Windows** — **Experimental (Community Tested)**. Windows users are welcome to test, report issues, or contribute fixes!
+v1.1.9 is **Linux & Windows only**. Mac stays on **1.1.5**.
 
 ## Download
 
-Latest release: **[v1.1.9](https://github.com/LondonVista/biguwidget/releases/latest)**
-
 | OS | Status | File |
 |---|---|---|
-| **Mac** | Native App (Recommended) | [BigUwidget-1.1.5-Mac.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.1.7/BigUwidget-1.1.5-Mac.zip) |
-| **Linux** | Tested & Maintained | [BigUwidget-1.1.9-Linux.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.1.9-Linux.zip) |
-| **Windows** | Experimental (Untested) | [BigUwidget-1.1.9-Windows.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.1.9-Windows.zip) |
+| **Mac** | Native (recommended) | [BigUwidget-1.1.5-Mac.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.1.7/BigUwidget-1.1.5-Mac.zip) |
+| **Linux** | Tested | [BigUwidget-1.1.9-Linux.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.1.9/BigUwidget-1.1.9-Linux.zip) |
+| **Windows** | Experimental | [BigUwidget-1.1.9-Windows.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.1.9/BigUwidget-1.1.9-Windows.zip) |
 
-- **Mac**: unzip and run **Install.command**, or drag `BigUwidget.app` to `/Applications`.  
-- **Linux**: Node.js 20+, then `./Start.sh` (or `npm install && npm start`).  
+- **Mac**: unzip and run **Install.command**, or drag `BigUwidget.app` to `/Applications`. DMG: drag onto Applications.
+- **Linux**: Node.js 20+, then `./Start.sh`.
 - **Windows**: Node.js 20+, then `Start.bat`.
 
 ## Updates

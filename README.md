@@ -1,5 +1,10 @@
 # BigUwidget
 
+[![Downloads](https://img.shields.io/github/downloads/LondonVista/biguwidget/total?label=downloads)](https://github.com/LondonVista/biguwidget/releases)
+[![Latest](https://img.shields.io/github/v/release/LondonVista/biguwidget)](https://github.com/LondonVista/biguwidget/releases/latest)
+[![Release downloads](https://img.shields.io/github/downloads/LondonVista/biguwidget/latest/total?label=latest%20release)](https://github.com/LondonVista/biguwidget/releases/latest)
+
+
 ![BigUwidget on macOS — Grok, Grok Bot, AGY, and Claude & GPT quota cards](docs/screenshot.png)
 
 Always-on-top **AI usage / quota widget** for **Mac, Linux, and Windows**.

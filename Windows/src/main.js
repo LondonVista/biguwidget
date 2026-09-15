@@ -113,9 +113,12 @@ function applyResult(id, res) {
     days: tracked.days,
     recentDeltas: tracked.recentDeltas,
     todayLeft: tracked.todayLeft,
+    todayOverrun: tracked.todayOverrun,
     todayUsed: tracked.todayUsed,
   };
 }
+
+let isFetchingAll = false;
 
 async function fetchOne(id) {
   try {
@@ -126,9 +129,13 @@ async function fetchOne(id) {
       } else {
         applyResult("claudeGPT", res.ok ? { ok: true, weekly: res.claude.weekly, five: res.claude.five, reset: res.claude.reset, fiveReset: res.claude.fiveReset } : res);
       }
-    } else if (id === "grok") applyResult("grok", await fetchers.fetchGrok());
-    else if (id === "grokBot") applyResult("grokBot", await fetchers.fetchGrokBot());
-    else if (id === "chatGPT") applyResult("chatGPT", await fetchers.fetchChatGPT());
+    } else if (id === "grok") {
+      applyResult("grok", await fetchers.fetchGrok());
+    } else if (id === "grokBot") {
+      applyResult("grokBot", await fetchers.fetchGrokBot());
+    } else if (id === "chatGPT") {
+      applyResult("chatGPT", await fetchers.fetchChatGPT());
+    }
   } catch (e) {
     applyResult(id, { ok: false, error: String(e.message || e) });
   }
@@ -137,22 +144,49 @@ async function fetchOne(id) {
 }
 
 async function fetchAll() {
-  const en = new Set(state.enabled);
-  const jobs = [];
-  if (en.has("agy") || en.has("claudeGPT")) {
-    jobs.push(
-      fetchers.fetchAGY(state.agyToken).then((res) => {
-        if (en.has("agy")) applyResult("agy", res.ok ? { ok: true, weekly: res.gemini.weekly, five: res.gemini.five, reset: res.gemini.reset, fiveReset: res.gemini.fiveReset } : res);
-        if (en.has("claudeGPT")) applyResult("claudeGPT", res.ok ? { ok: true, weekly: res.claude.weekly, five: res.claude.five, reset: res.claude.reset, fiveReset: res.claude.fiveReset } : res);
-      })
-    );
+  if (isFetchingAll) return;
+  isFetchingAll = true;
+  try {
+    const en = new Set(state.enabled);
+    const jobs = [];
+    if (en.has("agy") || en.has("claudeGPT")) {
+      jobs.push(
+        fetchers.fetchAGY(state.agyToken).then((res) => {
+          if (en.has("agy")) applyResult("agy", res.ok ? { ok: true, weekly: res.gemini.weekly, five: res.gemini.five, reset: res.gemini.reset, fiveReset: res.gemini.fiveReset } : res);
+          if (en.has("claudeGPT")) applyResult("claudeGPT", res.ok ? { ok: true, weekly: res.claude.weekly, five: res.claude.five, reset: res.claude.reset, fiveReset: res.claude.fiveReset } : res);
+        }).catch((e) => {
+          if (en.has("agy")) applyResult("agy", { ok: false, error: String(e.message || e) });
+          if (en.has("claudeGPT")) applyResult("claudeGPT", { ok: false, error: String(e.message || e) });
+        })
+      );
+    }
+    if (en.has("grok")) {
+      jobs.push(
+        fetchers.fetchGrok()
+          .then((r) => applyResult("grok", r))
+          .catch((e) => applyResult("grok", { ok: false, error: String(e.message || e) }))
+      );
+    }
+    if (en.has("grokBot")) {
+      jobs.push(
+        fetchers.fetchGrokBot()
+          .then((r) => applyResult("grokBot", r))
+          .catch((e) => applyResult("grokBot", { ok: false, error: String(e.message || e) }))
+      );
+    }
+    if (en.has("chatGPT")) {
+      jobs.push(
+        fetchers.fetchChatGPT()
+          .then((r) => applyResult("chatGPT", r))
+          .catch((e) => applyResult("chatGPT", { ok: false, error: String(e.message || e) }))
+      );
+    }
+    await Promise.allSettled(jobs);
+    saveState();
+    broadcast();
+  } finally {
+    isFetchingAll = false;
   }
-  if (en.has("grok")) jobs.push(fetchers.fetchGrok().then((r) => applyResult("grok", r)));
-  if (en.has("grokBot")) jobs.push(fetchers.fetchGrokBot().then((r) => applyResult("grokBot", r)));
-  if (en.has("chatGPT")) jobs.push(fetchers.fetchChatGPT().then((r) => applyResult("chatGPT", r)));
-  await Promise.all(jobs);
-  saveState();
-  broadcast();
 }
 
 function openLogin(id) {
@@ -436,13 +470,33 @@ function closeSettingsWindow() {
   }
 }
 
-app.setName("BigUwidget");
 app.whenReady().then(() => {
   const loaded = loadState();
+  const userData = app.getPath("userData");
+  const snapshots = loaded.snapshots || {};
+  for (const c of CARDS) {
+    if (snapshots[c.id]) {
+      const dir = tracker.getServiceDir(userData, c.id);
+      const deltas = tracker.getRecentDeltas(dir);
+      if (deltas && deltas.length) {
+        snapshots[c.id].recentDeltas = deltas;
+      }
+      const days = tracker.getDaysForDisplay(dir, snapshots[c.id].weekly || 0, snapshots[c.id].reset);
+      if (days && days.length) {
+        snapshots[c.id].days = days;
+        const todayDay = days.find((d) => d.isToday);
+        const todayUsed = todayDay ? todayDay.percent : 0;
+        const dailyStatus = tracker.calculateDailyStatus(snapshots[c.id].weekly || 0, todayUsed, snapshots[c.id].reset);
+        snapshots[c.id].todayLeft = dailyStatus.todayLeft;
+        snapshots[c.id].todayOverrun = dailyStatus.todayOverrun;
+        snapshots[c.id].todayUsed = todayUsed;
+      }
+    }
+  }
   state = {
     enabled: Array.isArray(loaded.enabled) ? loaded.enabled : DEFAULT_ENABLED,
     order: Array.isArray(loaded.order) ? loaded.order : DEFAULT_ENABLED,
-    snapshots: loaded.snapshots || {},
+    snapshots: snapshots,
     bounds: loaded.bounds || null,
     updatePolicy: loaded.updatePolicy || "prompt",
     agyToken: loaded.agyToken || null,

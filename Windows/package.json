@@ -1,7 +1,7 @@
 {
   "name": "biguwidget",
   "productName": "BigUwidget",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Floating desktop quota dashboard for Grok, Cursor, Antigravity, and ChatGPT — Linux",
   "main": "src/main.js",
   "author": {

@@ -1,10 +1,10 @@
 {
-  "version": "1.1.9",
-  "notes": "BigUwidget 1.1.9: Native webFrame zoom factor scaling (70% to 150%) with dynamic bounds auto-resizing, responsive settings slider, and dual Linux/Windows parity.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.1.9",
+  "version": "1.2.0",
+  "notes": "BigUwidget 1.2.0: Exact Mac-parity UI with integrated top header panel in S1, SF-styled chevron collapse toggles, dynamic countdown color indicators (<24h green, 24-48h gold, >48h orange), vertical delta opacity fading [1.0, 0.88, 0.76, 0.65], and accurate daily overrun badges across Linux & Windows.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.0",
   "downloads": {
     "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.7/BigUwidget-1.1.5-Mac.zip",
-    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.9/BigUwidget-1.1.9-Linux.zip",
-    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.9/BigUwidget-1.1.9-Windows.zip"
+    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.0/BigUwidget-1.2.0-Linux.zip",
+    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.0/BigUwidget-1.2.0-Windows.zip"
   }
 }

@@ -41,7 +41,6 @@
     footer { margin-top: 48px; color: var(--muted); font-size: .85rem; }
     code { color: var(--cyan); }
   </style>
-  <!-- Privacy-friendly analytics: Umami Cloud. Empty ID = disabled. -->
   <script>
     window.BIGU_UMAMI_WEBSITE_ID = "c1bd2214-158b-465c-8c55-3d01f0642917";
     window.BIGU_PLAUSIBLE_DOMAIN = "";
@@ -65,13 +64,6 @@
         s.setAttribute("data-website-id", window.BIGU_UMAMI_WEBSITE_ID);
         document.head.appendChild(s);
       }
-      if (window.BIGU_PLAUSIBLE_DOMAIN) {
-        var p = document.createElement("script");
-        p.defer = true;
-        p.src = "https://plausible.io/js/script.js";
-        p.setAttribute("data-domain", window.BIGU_PLAUSIBLE_DOMAIN);
-        document.head.appendChild(p);
-      }
     })();
   </script>
 </head>
@@ -84,11 +76,13 @@
       Antigravity, and ChatGPT. Native on Mac. Glass on Linux. Unofficial and free.
     </p>
     <div class="row">
-      <a class="btn" href="https://github.com/LondonVista/biguwidget/releases/latest">Download latest</a>
+      <a class="btn" href="https://github.com/LondonVista/biguwidget/releases/download/v1.1.7/BigUwidget-1.1.5-Mac.zip">Mac 1.1.5</a>
+      <a class="btn ghost" href="https://github.com/LondonVista/biguwidget/releases/download/v1.1.9/BigUwidget-1.1.9-Linux.zip">Linux 1.1.9</a>
+      <a class="btn ghost" href="https://github.com/LondonVista/biguwidget/releases/download/v1.1.9/BigUwidget-1.1.9-Windows.zip">Windows 1.1.9</a>
       <a class="btn ghost" href="https://birch-juniper-cinder-stone.grok.me">Main site</a>
       <a class="btn ghost" href="https://ko-fi.com/london_vista">Donate</a>
     </div>
-    <p class="muted">Mac · Linux · Windows — files from GitHub Releases. This Pages site is for visitors + analytics.</p>
+    <p class="muted">Mac is native 1.1.5. Linux and Windows are 1.1.9. Do not mix those version numbers.</p>
     <div class="hero">
       <img src="screenshot.png" alt="BigUwidget cards on a Mac desktop" />
     </div>
@@ -96,7 +90,7 @@
       <div class="card"><h3>Grok</h3><p>grok.com / xAI</p></div>
       <div class="card"><h3>Grok Bot</h3><p>in Cursor</p></div>
       <div class="card"><h3>AGY</h3><p>Gemini via Antigravity</p></div>
-      <div class="card"><h3>Claude &amp; GPT</h3><p>from Antigravity</p></div>
+      <div class="card"><h3>Claude & GPT</h3><p>from Antigravity</p></div>
       <div class="card"><h3>ChatGPT</h3><p>optional card</p></div>
     </div>
     <footer>

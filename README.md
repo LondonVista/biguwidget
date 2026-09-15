@@ -28,19 +28,19 @@ Unofficial desktop dashboard. Not affiliated with Google, xAI, OpenAI, Anthropic
 
 | Platform | Version | Release |
 |---|---|---|
-| **Mac** (native Swift) | **1.1.6** | [v1.1.5](https://github.com/LondonVista/biguwidget/releases/tag/v1.1.6-mac) |
-| **Linux** | **1.1.9** | [v1.1.9](https://github.com/LondonVista/biguwidget/releases/tag/v1.1.9) |
-| **Windows** | **1.1.9** | [v1.1.9](https://github.com/LondonVista/biguwidget/releases/tag/v1.1.9) |
+| **Mac** (native Swift) | **1.1.6** | [v1.1.6](https://github.com/LondonVista/biguwidget/releases/tag/v1.1.6-mac) |
+| **Linux** | **1.2.0** | [v1.2.0](https://github.com/LondonVista/biguwidget/releases/tag/v1.2.0) |
+| **Windows** | **1.2.0** | [v1.2.0](https://github.com/LondonVista/biguwidget/releases/tag/v1.2.0) |
 
-v1.1.9 is **Linux & Windows only**. Mac stays on **1.1.6**.
+v1.2.0 is **Linux & Windows only**. Mac stays on **1.1.6**.
 
 ## Download
 
 | OS | Status | File |
 |---|---|---|
 | **Mac** | Native (recommended) | [BigUwidget-1.1.5-Mac.dmg](https://github.com/LondonVista/biguwidget/releases/download/v1.1.5/BigUwidget-1.1.5-Mac.dmg) |
-| **Linux** | Tested | [BigUwidget-1.1.9-Linux.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.1.9/BigUwidget-1.1.9-Linux.zip) |
-| **Windows** | Experimental | [BigUwidget-1.1.9-Windows.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.1.9/BigUwidget-1.1.9-Windows.zip) |
+| **Linux** | Tested | [BigUwidget-1.2.0-Linux.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.2.0/BigUwidget-1.2.0-Linux.zip) |
+| **Windows** | Experimental | [BigUwidget-1.2.0-Windows.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.2.0/BigUwidget-1.2.0-Windows.zip) |
 
 - **Mac**: open the DMG and drag `BigUwidget` onto **Applications**.
 - **Linux**: Node.js 20+, then `./Start.sh`.

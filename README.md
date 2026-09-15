@@ -38,11 +38,11 @@ v1.1.9 is **Linux & Windows only**. Mac stays on **1.1.5**.
 
 | OS | Status | File |
 |---|---|---|
-| **Mac** | Native (recommended) | [BigUwidget-1.1.5-Mac.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.1.7/BigUwidget-1.1.5-Mac.zip) |
+| **Mac** | Native (recommended) | [BigUwidget-1.1.5-Mac.dmg](https://github.com/LondonVista/biguwidget/releases/download/v1.1.5/BigUwidget-1.1.5-Mac.dmg) |
 | **Linux** | Tested | [BigUwidget-1.1.9-Linux.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.1.9/BigUwidget-1.1.9-Linux.zip) |
 | **Windows** | Experimental | [BigUwidget-1.1.9-Windows.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.1.9/BigUwidget-1.1.9-Windows.zip) |
 
-- **Mac**: unzip and run **Install.command**, or drag `BigUwidget.app` to `/Applications`. DMG: drag onto Applications.
+- **Mac**: open the DMG and drag `BigUwidget` onto **Applications**.
 - **Linux**: Node.js 20+, then `./Start.sh`.
 - **Windows**: Node.js 20+, then `Start.bat`.
 

@@ -193,7 +193,8 @@ function calculateDailyStatus(totalPercent, todayUsed, resetsAt) {
   if (!resetsAt) {
     const budget = Math.min(remainingAtOpen, evenDailyShare);
     const left = Math.min(Math.max(0, budget - effectiveTodayUsed), poolRemainingNow);
-    return { todayLeft: left };
+    const overrun = Math.max(0, effectiveTodayUsed - budget);
+    return { todayLeft: left, todayOverrun: overrun };
   }
 
   const now = new Date();
@@ -204,7 +205,8 @@ function calculateDailyStatus(totalPercent, todayUsed, resetsAt) {
 
   const todayBudget = daysFromMorning <= 1.0 ? remainingAtOpen : remainingAtOpen / daysFromMorning;
   const todayLeft = Math.min(Math.max(0, todayBudget - effectiveTodayUsed), poolRemainingNow);
-  return { todayLeft };
+  const todayOverrun = Math.max(0, effectiveTodayUsed - todayBudget);
+  return { todayLeft, todayOverrun };
 }
 
 function processUsageUpdate(userDataPath, serviceId, res, prevSnap) {
@@ -226,6 +228,7 @@ function processUsageUpdate(userDataPath, serviceId, res, prevSnap) {
     days,
     recentDeltas,
     todayLeft: dailyStatus.todayLeft,
+    todayOverrun: dailyStatus.todayOverrun,
     todayUsed,
   };
 }

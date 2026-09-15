@@ -1,5 +1,5 @@
 function remainingParts(ts) {
-  if (!ts) return { days: "", rest: "" };
+  if (!ts) return { days: null, rest: "" };
   const mins = Math.max(0, Math.floor((ts - Date.now()) / 60000));
   const d = Math.floor(mins / (24 * 60));
   const h = Math.floor((mins % (24 * 60)) / 60);
@@ -8,9 +8,25 @@ function remainingParts(ts) {
     return { days: `${d}d`, rest: `${h}h ${m}m` };
   }
   if (h > 0) {
-    return { days: `${h}h`, rest: `${m}m` };
+    return { days: null, rest: `${h}h ${m}m` };
   }
-  return { days: `${m}m`, rest: "" };
+  return { days: null, rest: `${m}m` };
+}
+
+function resetCountdownColor(ts) {
+  if (!ts) return "#ff9f0a";
+  const hours = (ts - Date.now()) / 3600000;
+  if (hours <= 24) return "#32d74b"; // Near reset (<= 24h) -> Vibrant Green
+  if (hours <= 48) return "#ffd60a"; // Moderate (24h - 48h) -> Gold / Yellow
+  return "#ff9f0a";                   // Far away (> 48h) -> Orange
+}
+
+function fiveHourCountdownColor(ts) {
+  if (!ts) return "#ff9f0a";
+  const minutes = (ts - Date.now()) / 60000;
+  if (minutes <= 60) return "#32d74b"; // Close to 5h reset (<= 1h) -> Vibrant Green
+  if (minutes <= 120) return "#ffd60a"; // Medium (1h - 2h) -> Gold / Yellow
+  return "#ff9f0a";                     // Far away (> 2h) -> Orange
 }
 
 function formatResetDate(ts) {
@@ -42,13 +58,29 @@ function ago(ts) {
   return `Refreshed ${Math.floor(m / 60)}h ago`;
 }
 
+function formatSoft(val) {
+  const clamped = Math.max(0, val || 0);
+  if (Math.round(clamped) === clamped) {
+    return `${Math.round(clamped)}%`;
+  }
+  return `${clamped.toFixed(1)}%`;
+}
+
+function formatOverrun(val) {
+  const clamped = Math.max(0, val || 0);
+  if (Math.round(clamped) === clamped) {
+    return `+${Math.round(clamped)}%`;
+  }
+  return `+${clamped.toFixed(1)}%`;
+}
+
 function fmtPct(n) {
   if (n == null || Number.isNaN(n)) return "0";
   const r = Math.round(n * 10) / 10;
   return r === Math.round(r) ? String(Math.round(r)) : r.toFixed(1);
 }
 
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.1.9", updatePolicy: "prompt", update: null, zoom: 1.0 };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.2.0", updatePolicy: "prompt", update: null, zoom: 1.0 };
 const collapsed = new Set();
 
 function orderedCards() {
@@ -66,14 +98,37 @@ function orderedCards() {
   return list;
 }
 
-function renderDeltas(snap) {
+function deltaAgeLabel(ts) {
+  if (!ts) return "";
+  const sec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  if (sec < 15) return "now";
+  if (sec < 60) return `${sec}s`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h`;
+  return `${Math.floor(hr / 24)}d`;
+}
+
+function renderDeltas(snap, cardId) {
   const list = snap.recentDeltas;
   if (!list || !list.length) return "";
-  return list.slice(0, 4).map(d => {
-    const mins = Math.max(0, Math.floor((Date.now() - (d.timestamp || Date.now())) / 60000));
-    const timeStr = mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h`;
-    const valStr = `+${(d.delta || 0).toFixed(2)}%`;
-    return `<div class="delta-row"><span class="delta-time">${timeStr}</span><span class="delta-badge">${valStr}</span></div>`;
+  const opacities = [1.0, 0.88, 0.76, 0.65];
+  return list.slice(0, 4).map((d, index) => {
+    const timeStr = deltaAgeLabel(d.timestamp);
+    let valStr = "";
+    const val = typeof d.delta === "number" ? d.delta : 0;
+    if (Math.round(val) === val) {
+      valStr = `+${Math.round(val)}%`;
+    } else if (val >= 10.0) {
+      valStr = `+${val.toFixed(1)}%`;
+    } else {
+      valStr = `+${val.toFixed(2)}%`;
+    }
+    const isTop = index === 0;
+    const op = opacities[Math.min(index, opacities.length - 1)];
+    const topCls = isTop ? " delta-top" : "";
+    return `<div class="delta-row delta-idx-${index}" style="opacity: ${op}"><span class="delta-time">${timeStr}</span><span class="delta-badge delta-cyan${topCls}">${valStr}</span></div>`;
   }).join("");
 }
 
@@ -111,8 +166,8 @@ function renderWeek(snap) {
       html += `<div class="day-bonus">+${gainInt}</div>`;
       html += `<div class="day-lbl">${day.label}</div>`;
     } else if (isToday) {
-      html += `<div class="day-caret">▲</div>`;
-      html += `<div class="day-lbl"><span class="day-dot">•</span>${day.label}</div>`;
+      html += `<div class="day-dot">•</div>`;
+      html += `<div class="day-lbl">${day.label}</div>`;
     } else {
       html += `<div class="day-lbl">${day.label}</div>`;
     }
@@ -124,25 +179,14 @@ function renderWeek(snap) {
   return html;
 }
 
+let isRefreshing = false;
+
 function render() {
   const root = document.getElementById("root");
   const enabled = new Set(state.enabled || []);
   const all = orderedCards();
   const cards = all.filter((c) => enabled.has(c.id));
   let html = `<div class="stack">`;
-
-  // Top window bar chrome
-  html += `<div class="card drag chrome">
-    <div class="row">
-      <div class="brand">BigUwidget</div>
-      <div class="ver">${state.version || "1.1.8"}</div>
-      <div class="space"></div>
-      <button class="btn no-drag" data-act="refresh" title="Refresh">↻</button>
-      <button class="btn no-drag" data-act="settings" title="Settings">⚙</button>
-      <button class="btn no-drag" data-act="minimize" title="Minimize">−</button>
-      <button class="btn no-drag" data-act="quit" title="Quit">✕</button>
-    </div>
-  </div>`;
 
   if (state.update && state.update.version && (state.updatePolicy || "prompt") !== "off") {
     html += `<div class="card no-drag update">
@@ -159,27 +203,48 @@ function render() {
     html += `<div class="card"><div class="muted">No cards enabled. <button class="link" data-act="settings" style="text-decoration:underline">Open Settings</button> to turn services on.</div></div>`;
   }
 
-  for (const card of cards) {
+  for (let cIdx = 0; cIdx < cards.length; cIdx++) {
+    const card = cards[cIdx];
+    const isMasterTop = cIdx === 0;
     const snap = (state.snapshots && state.snapshots[card.id]) || { status: "loading" };
     const isCol = collapsed.has(card.id);
 
     html += `<div class="card">`;
     html += `<div class="card-header drag">
       <div class="title">${card.title}</div>
-      <div class="row no-drag">`;
+      <div class="row no-drag header-controls">`;
     if (snap.status === "needsLogin") {
       html += `<span class="offline" data-act="login" data-id="${card.id}">offline</span>`;
     }
     if (snap.status !== "ready") {
       html += `<button class="btn" data-act="login" data-id="${card.id}" title="Sign in">👤</button>`;
     }
-    html += `<button class="btn chevron-btn" data-act="collapse" data-id="${card.id}" title="Collapse">${isCol ? "▾" : "▴"}</button>
-      </div>
+    const chevronSvg = isCol
+      ? `<svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1L5 5L9 1"/></svg>`
+      : `<svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5L5 1L9 5"/></svg>`;
+
+    html += `<button class="btn chevron-btn" data-act="collapse" data-id="${card.id}" title="${isCol ? "Expand card" : "Collapse card"}">${chevronSvg}</button>`;
+    if (isMasterTop) {
+      html += `<button class="btn" data-act="settings" title="Settings">⚙</button>
+      <button class="btn" data-act="minimize" title="Minimize">−</button>
+      <button class="btn" data-act="quit" title="Quit">✕</button>`;
+    }
+    html += `</div>
     </div>`;
 
     if (isCol && snap.status === "ready") {
-      html += `<div class="mini"><span class="mpct">${fmtPct(snap.weekly)}%</span> used
-        <span class="space"></span><span class="ago no-drag" data-act="fetch" data-id="${card.id}">${ago(snap.fetchedAt)}</span></div>`;
+      const todayLeftVal = snap.todayLeft != null ? snap.todayLeft : Math.max(0, 100 - (snap.weekly || 0)) / 7;
+      const overrunVal = typeof snap.todayOverrun === "number" ? snap.todayOverrun : 0;
+      const isOverrun = overrunVal > 0.05;
+      html += `<div class="mini">
+        <span class="mpct">${fmtPct(snap.weekly)}%</span> used
+        <span class="space"></span>
+        <div class="today-row">
+          <span class="today-left" style="font-size:11px">today: ${formatSoft(todayLeftVal)} left</span>
+          ${isOverrun ? `<span class="overrun" style="font-size:11px">${formatOverrun(overrunVal)} above</span>` : ""}
+        </div>
+        <span class="ago no-drag" data-act="fetch" data-id="${card.id}">${ago(snap.fetchedAt)}</span>
+      </div>`;
     } else if (snap.status === "loading") {
       html += `<div class="muted">Loading…</div>`;
     } else if (snap.status === "needsLogin") {
@@ -188,9 +253,12 @@ function render() {
       html += `<div class="warn no-drag" data-act="fetch" data-id="${card.id}">${snap.error || "Couldn't refresh"}</div>`;
     } else {
       const resetP = remainingParts(snap.reset);
-      const resetStr = resetP.days ? `<span class="hl-orange">${resetP.days}</span> ${resetP.rest}` : resetP.rest;
+      const resetColor = resetCountdownColor(snap.reset);
+      const resetStr = resetP.days
+        ? `<span style="color:${resetColor}; font-weight:700">${resetP.days}</span> <span>${resetP.rest}</span>`
+        : `<span style="color:${resetColor}; font-weight:700">${resetP.rest}</span>`;
       const dateSubtitle = snap.reset ? formatResetDate(snap.reset) : "";
-      const deltasHtml = renderDeltas(snap);
+      const deltasHtml = renderDeltas(snap, card.id);
 
       // 1. Top Section: Big percentage & Resets + Deltas
       html += `<div class="top-section">
@@ -214,7 +282,10 @@ function render() {
       // 3. 5h Window
       if (snap.five != null || snap.fiveReset != null) {
         const fiveP = remainingParts(snap.fiveReset);
-        const fiveResetStr = fiveP.days ? `<span class="hl-orange">${fiveP.days} ${fiveP.rest}</span>` : `<span class="hl-orange">${fiveP.rest}</span>`;
+        const fiveColor = fiveHourCountdownColor(snap.fiveReset);
+        const fiveResetStr = fiveP.days
+          ? `<span style="color:${fiveColor}; font-weight:700">${fiveP.days} ${fiveP.rest}</span>`
+          : `<span style="color:${fiveColor}; font-weight:700">${fiveP.rest}</span>`;
         const fiveUsed = fmtPct(snap.five || 0);
         html += `<div class="five-row">5h: ${fiveUsed}% used · reset in ${fiveResetStr}</div>`;
       }
@@ -222,11 +293,18 @@ function render() {
       // 4. 7-Day Weekly Breakdown (Real Calendar Data)
       html += renderWeek(snap);
 
-      // 5. Footer: Real today left & refreshed time
+      // 5. Footer: Real today left, overrun & refreshed time
       const todayLeftVal = snap.todayLeft != null ? snap.todayLeft : Math.max(0, 100 - (snap.weekly || 0)) / 7;
+      const overrunVal = typeof snap.todayOverrun === "number" ? snap.todayOverrun : 0;
+      const isOverrun = overrunVal > 0.05;
       html += `<div class="foot">
-        <span class="today">today: ${todayLeftVal.toFixed(1)}% left</span>
-        <span class="ago no-drag" data-act="fetch" data-id="${card.id}">${ago(snap.fetchedAt)}</span>
+        <div class="today-row">
+          <span class="today-left">today: ${formatSoft(todayLeftVal)} left</span>
+          ${isOverrun ? `<span class="overrun">${formatOverrun(overrunVal)} above</span>` : ""}
+        </div>
+        <div class="ago-row">
+          <span class="ago no-drag" data-act="fetch" data-id="${card.id}">${ago(snap.fetchedAt)}</span>
+        </div>
       </div>`;
     }
 
@@ -245,9 +323,10 @@ function render() {
 
   if (window.bigu && typeof window.bigu.fitHeight === "function") {
     requestAnimationFrame(() => {
-      const h = root.scrollHeight || root.offsetHeight || root.getBoundingClientRect().height;
+      const rootEl = document.getElementById("root");
+      const h = rootEl ? (rootEl.offsetHeight || rootEl.scrollHeight) : 0;
       if (h > 0) {
-        window.bigu.fitHeight(h + 8);
+        window.bigu.fitHeight(h + 16);
       }
     });
   }
@@ -262,7 +341,19 @@ document.addEventListener("click", async (e) => {
   if (act === "quit") window.bigu.quit();
   if (act === "minimize") window.bigu.minimize();
   if (act === "settings") window.bigu.openSettingsWindow();
-  if (act === "refresh") window.bigu.fetchAll();
+  if (act === "refresh") {
+    if (isRefreshing) return;
+    isRefreshing = true;
+    render();
+    try {
+      await window.bigu.fetchAll();
+    } finally {
+      setTimeout(() => {
+        isRefreshing = false;
+        render();
+      }, 700);
+    }
+  }
   if (act === "collapse" && id) {
     if (collapsed.has(id)) collapsed.delete(id);
     else collapsed.add(id);

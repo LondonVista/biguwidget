@@ -381,7 +381,9 @@ html, body {
 }
 .tog.on { background: rgba(50,215,75,0.2); color: var(--green); }
 .sfoot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
-.sfoot-links { display: flex; align-items: center; gap: 8px; }
+.sfoot-links { display: flex; align-items: center; gap: 14px; }
+.link.fb { color: rgba(255, 255, 255, 0.45); font-weight: 500; }
+.link.fb:hover { color: rgba(255, 255, 255, 0.85); text-decoration: underline; }
 .sver { font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; opacity: 0.45; font-weight: 500; }
 
 /* Zoom slider row */

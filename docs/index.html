@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BigUwidget — AI quotas, always in view</title>
+  <meta name="description" content="Always-on-top desktop quota widget for Grok, Cursor, Antigravity, and ChatGPT. Mac, Linux, Windows. Unofficial." />
+  <link rel="canonical" href="https://londonvista.github.io/biguwidget/" />
+  <style>
+    :root {
+      --bg: #0b0d10;
+      --card: #16181d;
+      --text: #f2f4f7;
+      --muted: #9aa3af;
+      --cyan: #24c1e0;
+      --line: rgba(255,255,255,.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+      background: radial-gradient(1200px 600px at 20% -10%, #1a2a33 0%, var(--bg) 50%);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    main { max-width: 880px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: clamp(2rem, 5vw, 3.2rem); letter-spacing: -0.04em; margin: 12px 0 16px; }
+    p.lead { color: var(--muted); font-size: 1.1rem; max-width: 42rem; }
+    .hero img { width: 100%; border-radius: 16px; border: 1px solid var(--line); margin: 24px 0; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; margin: 20px 0 8px; }
+    a.btn {
+      display: inline-block; text-decoration: none; color: #041016;
+      background: var(--cyan); padding: 10px 16px; border-radius: 10px; font-weight: 700;
+    }
+    a.btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 28px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+    .card h3 { margin: 0 0 6px; font-size: 1rem; }
+    .card p { margin: 0; color: var(--muted); font-size: .92rem; }
+    .muted { color: var(--muted); font-size: .9rem; }
+    footer { margin-top: 48px; color: var(--muted); font-size: .85rem; }
+    code { color: var(--cyan); }
+  </style>
+  <!-- Privacy-friendly analytics: Umami Cloud. Empty ID = disabled. -->
+  <script>
+    window.BIGU_UMAMI_WEBSITE_ID = "";
+    window.BIGU_PLAUSIBLE_DOMAIN = "";
+  </script>
+  <script>
+    (function () {
+      if (window.BIGU_UMAMI_WEBSITE_ID) {
+        var s = document.createElement("script");
+        s.defer = true;
+        s.src = "https://cloud.umami.is/script.js";
+        s.setAttribute("data-website-id", window.BIGU_UMAMI_WEBSITE_ID);
+        document.head.appendChild(s);
+      }
+      if (window.BIGU_PLAUSIBLE_DOMAIN) {
+        var p = document.createElement("script");
+        p.defer = true;
+        p.src = "https://plausible.io/js/script.js";
+        p.setAttribute("data-domain", window.BIGU_PLAUSIBLE_DOMAIN);
+        document.head.appendChild(p);
+      }
+    })();
+  </script>
+</head>
+<body>
+  <main>
+    <p class="muted">BigUwidget · desktop widget</p>
+    <h1>AI quotas,<br />always in view.</h1>
+    <p class="lead">
+      Always-on-top panel for weekly and 5-hour usage on Grok, Grok Bot in Cursor,
+      Antigravity, and ChatGPT. Native on Mac. Glass on Linux. Unofficial and free.
+    </p>
+    <div class="row">
+      <a class="btn" href="https://github.com/LondonVista/biguwidget/releases/latest">Download latest</a>
+      <a class="btn ghost" href="https://birch-juniper-cinder-stone.grok.me">Main site</a>
+      <a class="btn ghost" href="https://ko-fi.com/london_vista">Donate</a>
+    </div>
+    <p class="muted">Mac · Linux · Windows — files from GitHub Releases. This Pages site is for visitors + analytics.</p>
+    <div class="hero">
+      <img src="screenshot.png" alt="BigUwidget cards on a Mac desktop" />
+    </div>
+    <div class="grid">
+      <div class="card"><h3>Grok</h3><p>grok.com / xAI</p></div>
+      <div class="card"><h3>Grok Bot</h3><p>in Cursor</p></div>
+      <div class="card"><h3>AGY</h3><p>Gemini via Antigravity</p></div>
+      <div class="card"><h3>Claude &amp; GPT</h3><p>from Antigravity</p></div>
+      <div class="card"><h3>ChatGPT</h3><p>optional card</p></div>
+    </div>
+    <footer>
+      Not affiliated with Google, xAI, OpenAI, Anthropic, or Cursor.
+      Jacob · <a href="https://github.com/LondonVista/biguwidget" style="color:var(--cyan)">GitHub</a>
+    </footer>
+  </main>
+</body>
+</html>

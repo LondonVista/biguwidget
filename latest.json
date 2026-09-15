@@ -1,10 +1,10 @@
 {
-  "version": "1.2.0",
-  "notes": "BigUwidget 1.2.0: Exact Mac-parity UI with integrated top header panel in S1, SF-styled chevron collapse toggles, dynamic countdown color indicators (<24h green, 24-48h gold, >48h orange), vertical delta opacity fading [1.0, 0.88, 0.76, 0.65], and accurate daily overrun badges across Linux & Windows.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.0",
+  "version": "2.0.0",
+  "notes": "BigUwidget 2.0.0: Major release with full Mac-parity UI redesign, integrated top header panel in S1, SF-style chevron toggles, dynamic countdown color indicators (<24h green, 24-48h gold, >48h orange), vertical delta opacity fading [1.0, 0.88, 0.76, 0.65], and real calendar overrun tracking.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v2.0.0",
   "downloads": {
     "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.1.7/BigUwidget-1.1.5-Mac.zip",
-    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.0/BigUwidget-1.2.0-Linux.zip",
-    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.0/BigUwidget-1.2.0-Windows.zip"
+    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v2.0.0/BigUwidget-2.0.0-Linux.zip",
+    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v2.0.0/BigUwidget-2.0.0-Windows.zip"
   }
 }

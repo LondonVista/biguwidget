@@ -48,6 +48,16 @@
   </script>
   <script>
     (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.get("me") === "1" || params.get("nomine") === "1") {
+        try { localStorage.setItem("umami.disabled", "1"); } catch (e) {}
+      }
+      if (params.get("me") === "0") {
+        try { localStorage.removeItem("umami.disabled"); } catch (e) {}
+      }
+      try {
+        if (localStorage.getItem("umami.disabled")) return;
+      } catch (e) {}
       if (window.BIGU_UMAMI_WEBSITE_ID) {
         var s = document.createElement("script");
         s.defer = true;

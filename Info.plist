@@ -5,15 +5,15 @@
 	<key>CFBundleExecutable</key>
 	<string>BigUwidget</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.jakubsokolowski.BigUwidget</string>
+	<string>com.londonvista.biguwidget</string>
 	<key>CFBundleName</key>
 	<string>BigUwidget</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.1.5</string>
+	<string>1.1.6</string>
 	<key>CFBundleVersion</key>
-	<string>115</string>
+	<string>116</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>LSMinimumSystemVersion</key>

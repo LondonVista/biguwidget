@@ -28,11 +28,11 @@ Unofficial desktop dashboard. Not affiliated with Google, xAI, OpenAI, Anthropic
 
 | Platform | Version | Release |
 |---|---|---|
-| **Mac** (native Swift) | **1.1.5** | [v1.1.5](https://github.com/LondonVista/biguwidget/releases/tag/v1.1.5) |
+| **Mac** (native Swift) | **1.1.6** | [v1.1.5](https://github.com/LondonVista/biguwidget/releases/tag/v1.1.6-mac) |
 | **Linux** | **1.1.9** | [v1.1.9](https://github.com/LondonVista/biguwidget/releases/tag/v1.1.9) |
 | **Windows** | **1.1.9** | [v1.1.9](https://github.com/LondonVista/biguwidget/releases/tag/v1.1.9) |
 
-v1.1.9 is **Linux & Windows only**. Mac stays on **1.1.5**.
+v1.1.9 is **Linux & Windows only**. Mac stays on **1.1.6**.
 
 ## Download
 

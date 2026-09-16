@@ -3,6 +3,8 @@
 [![Downloads](https://img.shields.io/github/downloads/LondonVista/biguwidget/total?label=downloads)](https://github.com/LondonVista/biguwidget/releases)
 [![Latest](https://img.shields.io/github/v/release/LondonVista/biguwidget)](https://github.com/LondonVista/biguwidget/releases/latest)
 [![Release downloads](https://img.shields.io/github/downloads/LondonVista/biguwidget/latest/total?label=latest%20release)](https://github.com/LondonVista/biguwidget/releases/latest)
+[![Website - Grok App](https://img.shields.io/badge/Website-Grok_App-purple?style=flat-square)](https://grok.com)
+[![Support - Ko-fi](https://img.shields.io/badge/Support-Ko--fi-ff5e5b?style=flat-square&logo=kofi&logoColor=white)](https://ko-fi.com/london_vista)
 
 
 ![BigUwidget on macOS — Grok, Grok Bot, AGY, and Claude & GPT quota cards](docs/screenshot.png)
@@ -54,6 +56,8 @@ In **Settings** choose:
 - **Auto** — downloads the new zip
 - **Off** — no checks
 
-## Support
+## Links & Support
 
-[ko-fi.com/london_vista](https://ko-fi.com/london_vista)
+[![Website - Grok App](https://img.shields.io/badge/Website-Grok_App-purple?style=flat-square)](https://grok.com)
+[![Support - Ko-fi](https://img.shields.io/badge/Support-Ko--fi-ff5e5b?style=flat-square&logo=kofi&logoColor=white)](https://ko-fi.com/london_vista)
+

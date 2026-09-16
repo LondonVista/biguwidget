@@ -344,10 +344,18 @@ final class WidgetLayoutSettings: ObservableObject {
         }
     }
 
+    @Published var backgroundOpacity: Double {
+        didSet {
+            UserDefaults.standard.set(backgroundOpacity, forKey: opacityKey)
+            onLayoutChange?()
+        }
+    }
+
     private let orderKey = "bigu.settings.cardOrder"
     private let enabledKey = "bigu.settings.enabledCards"
     private let dockedKey = "bigu.settings.dockedCards"
     private let scaleKey = "bigu.settings.cardScales"
+    private let opacityKey = "bigu.settings.backgroundOpacity"
     private let updatePolicyKey = "bigu.settings.updatePolicy"
 
     @Published var updatePolicy: UpdatePolicy {
@@ -398,6 +406,12 @@ final class WidgetLayoutSettings: ObservableObject {
             self.cardScales = out
         } else {
             self.cardScales = [:]
+        }
+
+        if UserDefaults.standard.object(forKey: opacityKey) != nil {
+            self.backgroundOpacity = UserDefaults.standard.double(forKey: opacityKey)
+        } else {
+            self.backgroundOpacity = 0.48
         }
     }
 
@@ -703,6 +717,84 @@ struct WidgetSettingsView: View {
             Divider()
                 .background(Color.white.opacity(0.15))
 
+            // Appearance & Glass Transparency (Option B)
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: 6) {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Color(hex: 0x24C1E0))
+                    Text("Widget Appearance & Glass Transparency")
+                        .font(.system(size: 10.5, weight: .bold))
+                        .foregroundStyle(Color.white.opacity(0.92))
+                    Spacer()
+                    let clearPct = Int(((1.0 - settings.backgroundOpacity) * 100).rounded())
+                    Text("\(clearPct)% Clear")
+                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color(hex: 0x32D74B))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule().fill(Color(hex: 0x32D74B).opacity(0.18))
+                        )
+                }
+
+                HStack {
+                    Text("Background Opacity")
+                        .font(.system(size: 9.5, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.70))
+                    Spacer()
+                    Text("\(Int((settings.backgroundOpacity * 100).rounded()))%")
+                        .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(Color.white.opacity(0.85))
+                }
+
+                Slider(value: $settings.backgroundOpacity, in: 0.05...0.98, step: 0.01)
+                    .tint(Color(hex: 0x32D74B))
+                    .controlSize(.small)
+
+                HStack(spacing: 4) {
+                    Text("Quick Presets:")
+                        .font(.system(size: 8.5, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(0.45))
+                    
+                    let presets: [(name: String, val: Double)] = [
+                        ("Ghost (10%)", 0.10),
+                        ("Clear (28%)", 0.28),
+                        ("BigU (48%)", 0.48),
+                        ("Dark (75%)", 0.75),
+                        ("Solid (95%)", 0.95)
+                    ]
+                    
+                    ForEach(presets, id: \.name) { preset in
+                        let isSelected = abs(settings.backgroundOpacity - preset.val) < 0.03
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.18)) {
+                                settings.backgroundOpacity = preset.val
+                            }
+                        }) {
+                            Text(preset.name)
+                                .font(.system(size: 8.0, weight: isSelected ? .bold : .medium))
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 3)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                        .fill(isSelected ? Color(hex: 0x32D74B).opacity(0.28) : Color.white.opacity(0.08))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                        .stroke(isSelected ? Color(hex: 0x32D74B).opacity(0.6) : Color.white.opacity(0.08), lineWidth: 0.6)
+                                )
+                                .foregroundStyle(isSelected ? Color(hex: 0x32D74B) : Color.white.opacity(0.75))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.top, 1)
+            }
+
+            Divider()
+                .background(Color.white.opacity(0.15))
+
             VStack(alignment: .leading, spacing: 6) {
                 Text("Updates")
                     .font(.system(size: 11, weight: .semibold))
@@ -787,7 +879,7 @@ struct WidgetSettingsView: View {
             }
         }
         .padding(14)
-        .frame(width: 320, height: 620)
+        .frame(width: 320, height: 710)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color(hex: 0x18181A).opacity(0.96))

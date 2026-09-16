@@ -476,6 +476,7 @@ struct MiniDeltaPill: View {
 
 struct ServiceCardView: View {
     @ObservedObject var subStore: SingleServiceStore
+    @ObservedObject var settings = WidgetLayoutSettings.shared
     let now: Date
     var isMasterTop: Bool = false
     var onMasterMinimize: (() -> Void)? = nil
@@ -813,10 +814,10 @@ struct ServiceCardView: View {
         .frame(width: 198)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(hex: 0x1C1C1E).opacity(0.48))
+                .fill(Color(hex: 0x1C1C1E).opacity(settings.backgroundOpacity))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                        .stroke(Color.white.opacity(max(0.08, settings.backgroundOpacity * 0.35)), lineWidth: 1)
                 )
         )
         .shadow(color: .black.opacity(0.55), radius: 8, y: 3)

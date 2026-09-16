@@ -9,7 +9,8 @@ cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
 if [[ -f "$ROOT/AppIcon.icns" ]]; then
   cp "$ROOT/AppIcon.icns" "$RES/AppIcon.icns"
 fi
-swiftc -O -parse-as-library -o "$BIN/BigUwidget" "$ROOT/BigUwidget.swift" \
+swiftc -Onone -j8 -parse-as-library -o "$BIN/BigUwidget" \
+  "$ROOT/BigUwidget.swift" "$ROOT"/BW_*.swift \
   -framework Cocoa -framework SwiftUI -framework WebKit \
   -target arm64-apple-macos13
 chmod +x "$BIN/BigUwidget"

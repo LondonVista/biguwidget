@@ -163,16 +163,16 @@ final class SingleServiceStore: ObservableObject {
         let bonus = effectiveAccumulated(on: key, resetsAt: resetsAt)
 
         // Midnight artifact: open stamped 0 before the weekly reset. Do not borrow
-        // yesterday's close when this day is a real intra-week reset to ~0.
+        // yesterday's close when this day is a real reset (weekly reset or intra-week reset to ~0).
         var effectiveOpen = open
-        if effectiveOpen == 0 && bonus < 0.5 {
+        if effectiveOpen == 0 && bonus < 0.5 && !UsageParser.isResetWeekday(key, reset: resetsAt) {
             let fmt = DateFormatter()
             fmt.locale = Locale(identifier: "en_US_POSIX")
             fmt.dateFormat = "yyyy-MM-dd"
             if let d = fmt.date(from: key),
                let prevD = Calendar.current.date(byAdding: .day, value: -1, to: d) {
                 let prevKey = fmt.string(from: prevD)
-                if let prevEntry = dailyMap[prevKey], let prevClose = prevEntry["close"], prevClose > 0 {
+                if let prevEntry = dailyMap[prevKey], let prevClose = prevEntry["close"], prevClose > 0, close >= prevClose {
                     effectiveOpen = prevClose
                 }
             }

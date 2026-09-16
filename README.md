@@ -3,7 +3,7 @@
 [![Downloads](https://img.shields.io/github/downloads/LondonVista/biguwidget/total?label=downloads)](https://github.com/LondonVista/biguwidget/releases)
 [![Latest](https://img.shields.io/github/v/release/LondonVista/biguwidget)](https://github.com/LondonVista/biguwidget/releases/latest)
 [![Release downloads](https://img.shields.io/github/downloads/LondonVista/biguwidget/latest/total?label=latest%20release)](https://github.com/LondonVista/biguwidget/releases/latest)
-[![Website - Grok App](https://img.shields.io/badge/Website-Grok_App-purple?style=flat-square)](https://grok.com)
+[![Website - Grok App](https://img.shields.io/badge/Website-Grok_App-purple?style=flat-square)](https://birch-juniper-cinder-stone.grok.me)
 [![Support - Ko-fi](https://img.shields.io/badge/Support-Ko--fi-ff5e5b?style=flat-square&logo=kofi&logoColor=white)](https://ko-fi.com/london_vista)
 
 
@@ -58,6 +58,6 @@ In **Settings** choose:
 
 ## Links & Support
 
-[![Website - Grok App](https://img.shields.io/badge/Website-Grok_App-purple?style=flat-square)](https://grok.com)
+[![Website - Grok App](https://img.shields.io/badge/Website-Grok_App-purple?style=flat-square)](https://birch-juniper-cinder-stone.grok.me)
 [![Support - Ko-fi](https://img.shields.io/badge/Support-Ko--fi-ff5e5b?style=flat-square&logo=kofi&logoColor=white)](https://ko-fi.com/london_vista)
 

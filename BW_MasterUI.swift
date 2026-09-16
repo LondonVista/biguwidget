@@ -732,20 +732,20 @@ struct ServiceCardView: View {
                         }
 
                         if showsFive, let fivePct = snap.fiveHourPercent {
-                            let fiveScale: CGFloat = isWeekHidden ? 1 : 1.2
-                            HStack(spacing: 3) {
+                            let fiveScale: CGFloat = isWeekHidden ? 1.15 : 1.35
+                            HStack(spacing: 3.5) {
                                 Text("5h: \(Int(fivePct.rounded()))% used")
-                                    .font(.system(size: 9.5 * fiveScale, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(Color.white.opacity(0.90))
+                                    .font(.system(size: 10.0 * fiveScale, weight: .bold, design: .rounded))
+                                    .foregroundStyle(Color.white.opacity(0.95))
                                     .monospacedDigit()
                                 if let fiveReset = snap.fiveHourResetsAt {
                                     let fParts = UsageParser.remainingParts(until: fiveReset, now: now)
                                     let fAccent = UsageParser.fiveHourCountdownColor(until: fiveReset, now: now)
                                     Text("· reset in")
-                                        .font(.system(size: 9 * fiveScale, weight: .medium))
-                                        .foregroundStyle(Color.white.opacity(0.55))
+                                        .font(.system(size: 9.5 * fiveScale, weight: .medium))
+                                        .foregroundStyle(Color.white.opacity(0.60))
                                     Text(fParts.rest)
-                                        .font(.system(size: 9.5 * fiveScale, weight: .bold, design: .rounded))
+                                        .font(.system(size: 10.0 * fiveScale, weight: .heavy, design: .rounded))
                                         .foregroundStyle(fAccent)
                                         .monospacedDigit()
                                 }
@@ -753,8 +753,8 @@ struct ServiceCardView: View {
                                 if isWeekHidden { weekStripToggle }
                             }
                             .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                            .padding(.vertical, 1.5)
+                            .minimumScaleFactor(0.70)
+                            .padding(.vertical, 2.5)
                         }
 
                         if !isWeekHidden {

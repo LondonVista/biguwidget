@@ -180,11 +180,143 @@ function renderWeek(snap) {
 }
 
 let isRefreshing = false;
+const urlParams = new URLSearchParams(window.location.search);
+const standaloneCardId = urlParams.get("card");
 
 function render() {
   const root = document.getElementById("root");
   const enabled = new Set(state.enabled || []);
+  const undockedSet = new Set(Array.isArray(state.undocked) ? state.undocked : []);
   const all = orderedCards();
+
+  // If in standalone undocked window mode, render only this specific card
+  if (standaloneCardId) {
+    const card = all.find((c) => c.id === standaloneCardId) || { id: standaloneCardId, title: standaloneCardId };
+    const snap = (state.snapshots && state.snapshots[card.id]) || { status: "loading" };
+    const isCol = collapsed.has(card.id);
+
+    let html = `<div class="stack">`;
+    html += `<div class="card">`;
+    html += `<div class="card-header drag">
+      <div class="title">${card.title}</div>
+      <div class="row no-drag header-controls">`;
+    if (snap.status === "needsLogin") {
+      html += `<span class="offline" data-act="login" data-id="${card.id}">offline</span>`;
+    }
+    if (snap.status !== "ready") {
+      html += `<button class="btn" data-act="login" data-id="${card.id}" title="Sign in">👤</button>`;
+    }
+    const chevronSvg = isCol
+      ? `<svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1L5 5L9 1"/></svg>`
+      : `<svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5L5 1L9 5"/></svg>`;
+
+    html += `<button class="btn chevron-btn" data-act="collapse" data-id="${card.id}" title="${isCol ? "Expand card" : "Collapse card"}">${chevronSvg}</button>`;
+    // Standalone header controls: Dock back & Close (hide/disable)
+    html += `<button class="btn" data-act="undock-toggle" data-id="${card.id}" title="Dock back into main widget">🔗</button>`;
+    html += `<button class="btn" data-act="close-standalone" data-id="${card.id}" title="Close card">✕</button>`;
+    html += `</div>
+    </div>`;
+
+    if (isCol && snap.status === "ready") {
+      const todayLeftVal = snap.todayLeft != null ? snap.todayLeft : Math.max(0, 100 - (snap.weekly || 0)) / 7;
+      const overrunVal = typeof snap.todayOverrun === "number" ? snap.todayOverrun : 0;
+      const isOverrun = overrunVal > 0.05;
+      html += `<div class="mini">
+        <span class="mpct">${fmtPct(snap.weekly)}%</span> used
+        <span class="space"></span>
+        <div class="today-row">
+          <span class="today-left" style="font-size:11px">today: ${formatSoft(todayLeftVal)} left</span>
+          ${isOverrun ? `<span class="overrun" style="font-size:11px">${formatOverrun(overrunVal)} above</span>` : ""}
+        </div>
+        <span class="ago no-drag" data-act="fetch" data-id="${card.id}">${ago(snap.fetchedAt)}</span>
+      </div>`;
+    } else if (snap.status === "loading") {
+      html += `<div class="muted">Loading…</div>`;
+    } else if (snap.status === "needsLogin") {
+      html += `<div class="muted no-drag" data-act="login" data-id="${card.id}">Sign in</div>`;
+    } else if (snap.status === "error") {
+      html += `<div class="warn no-drag" data-act="fetch" data-id="${card.id}">${snap.error || "Couldn't refresh"}</div>`;
+    } else {
+      const resetP = remainingParts(snap.reset);
+      const resetColor = resetCountdownColor(snap.reset);
+      const resetStr = resetP.days
+        ? `<span style="color:${resetColor}; font-weight:700">${resetP.days}</span> <span>${resetP.rest}</span>`
+        : `<span style="color:${resetColor}; font-weight:700">${resetP.rest}</span>`;
+      const dateSubtitle = snap.reset ? formatResetDate(snap.reset) : "";
+      const deltasHtml = renderDeltas(snap, card.id);
+
+      // 1. Top Section: Big percentage & Resets + Deltas
+      html += `<div class="top-section">
+        <div class="main-metrics">
+          <div class="pct-wrap">
+            <span class="pct">${fmtPct(snap.weekly)}%</span>
+            <span class="used">used</span>
+          </div>
+          ${snap.reset ? `<div class="reset-info">Resets in ${resetStr}</div>` : ""}
+          ${dateSubtitle ? `<div class="reset-date">${dateSubtitle}</div>` : ""}
+        </div>
+        ${deltasHtml ? `<div class="deltas-stack">${deltasHtml}</div>` : ""}
+      </div>`;
+
+      // 2. Progress Bar
+      html += `<div class="bar-wrap">
+        <div class="bar"><span style="width:${Math.min(100, Math.max(0, snap.weekly || 0))}%"></span></div>
+        <div class="bar-max">100%</div>
+      </div>`;
+
+      // 3. 5h Window
+      if (snap.five != null || snap.fiveReset != null) {
+        const fiveP = remainingParts(snap.fiveReset);
+        const fiveColor = fiveHourCountdownColor(snap.fiveReset);
+        const fiveResetStr = fiveP.days
+          ? `<span style="color:${fiveColor}; font-weight:700">${fiveP.days} ${fiveP.rest}</span>`
+          : `<span style="color:${fiveColor}; font-weight:700">${fiveP.rest}</span>`;
+        const fiveUsed = fmtPct(snap.five || 0);
+        html += `<div class="five-row">5h: ${fiveUsed}% used · reset in ${fiveResetStr}</div>`;
+      }
+
+      // 4. 7-Day Weekly Breakdown
+      const hideCalendar = !!(state.hideWeekDays && state.hideWeekDays[card.id]);
+      if (!hideCalendar) {
+        html += renderWeek(snap);
+      }
+
+      // 5. Footer: Real today left, overrun & refreshed time
+      const todayLeftVal = snap.todayLeft != null ? snap.todayLeft : Math.max(0, 100 - (snap.weekly || 0)) / 7;
+      const overrunVal = typeof snap.todayOverrun === "number" ? snap.todayOverrun : 0;
+      const isOverrun = overrunVal > 0.05;
+      html += `<div class="foot">
+        <div class="today-row">
+          <span class="today-left">today: ${formatSoft(todayLeftVal)} left</span>
+          ${isOverrun ? `<span class="overrun">${formatOverrun(overrunVal)} above</span>` : ""}
+        </div>
+        <div class="ago-row">
+          <span class="ago no-drag" data-act="fetch" data-id="${card.id}">${ago(snap.fetchedAt)}</span>
+        </div>
+      </div>`;
+    }
+
+    html += `</div></div>`;
+    root.innerHTML = html;
+    root.style.opacity = typeof state.opacity === "number" ? state.opacity : 1.0;
+
+    if (window.bigu && typeof window.bigu.setZoomFactor === "function") {
+      window.bigu.setZoomFactor(typeof state.zoom === "number" ? state.zoom : 1.0);
+    }
+
+    if (window.bigu && typeof window.bigu.fitUndockedHeight === "function") {
+      requestAnimationFrame(() => {
+        const rootEl = document.getElementById("root");
+        const h = rootEl ? (rootEl.offsetHeight || rootEl.scrollHeight) : 0;
+        if (h > 0) {
+          window.bigu.fitUndockedHeight(standaloneCardId, h + 16);
+        }
+      });
+    }
+    return;
+  }
+
+  // Main Stack Window
   const cards = all.filter((c) => enabled.has(c.id));
   let html = `<div class="stack">`;
 
@@ -206,6 +338,7 @@ function render() {
   for (let cIdx = 0; cIdx < cards.length; cIdx++) {
     const card = cards[cIdx];
     const isMasterTop = cIdx === 0;
+    const isUndocked = undockedSet.has(card.id);
     const snap = (state.snapshots && state.snapshots[card.id]) || { status: "loading" };
     const isCol = collapsed.has(card.id);
 
@@ -223,7 +356,12 @@ function render() {
       ? `<svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1L5 5L9 1"/></svg>`
       : `<svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5L5 1L9 5"/></svg>`;
 
-    html += `<button class="btn chevron-btn" data-act="collapse" data-id="${card.id}" title="${isCol ? "Expand card" : "Collapse card"}">${chevronSvg}</button>`;
+    if (!isUndocked) {
+      html += `<button class="btn chevron-btn" data-act="collapse" data-id="${card.id}" title="${isCol ? "Expand card" : "Collapse card"}">${chevronSvg}</button>`;
+    }
+    // Undock / Dock toggle button
+    html += `<button class="btn" data-act="undock-toggle" data-id="${card.id}" title="${isUndocked ? "Dock back into main widget" : "Undock to independent floating window"}">${isUndocked ? "🔗" : "⧉"}</button>`;
+
     if (isMasterTop) {
       html += `<button class="btn" data-act="settings" title="Settings">⚙</button>
       <button class="btn" data-act="minimize" title="Minimize">−</button>
@@ -232,7 +370,13 @@ function render() {
     html += `</div>
     </div>`;
 
-    if (isCol && snap.status === "ready") {
+    if (isUndocked) {
+      html += `<div class="mini" style="padding: 2px 0;">
+        <span class="muted" style="font-size: 11px;">Floating in separate window</span>
+        <span class="space"></span>
+        <button class="link no-drag" data-act="undock-toggle" data-id="${card.id}" style="font-size: 11px;">Dock back</button>
+      </div>`;
+    } else if (isCol && snap.status === "ready") {
       const todayLeftVal = snap.todayLeft != null ? snap.todayLeft : Math.max(0, 100 - (snap.weekly || 0)) / 7;
       const overrunVal = typeof snap.todayOverrun === "number" ? snap.todayOverrun : 0;
       const isOverrun = overrunVal > 0.05;
@@ -345,6 +489,13 @@ document.addEventListener("click", async (e) => {
   if (act === "quit") window.bigu.quit();
   if (act === "minimize") window.bigu.minimize();
   if (act === "settings") window.bigu.openSettingsWindow();
+  if (act === "undock-toggle" && id) {
+    window.bigu.toggleUndock(id);
+  }
+  if (act === "close-standalone" && id) {
+    // Dock back and/or disable
+    window.bigu.setEnabled(id, false);
+  }
   if (act === "refresh") {
     if (isRefreshing) return;
     isRefreshing = true;

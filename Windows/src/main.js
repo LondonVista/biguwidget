@@ -49,7 +49,7 @@ function loadState() {
   try {
     return JSON.parse(fs.readFileSync(statePath(), "utf8"));
   } catch {
-    return { enabled: DEFAULT_ENABLED, order: DEFAULT_ENABLED, snapshots: {}, bounds: null, updatePolicy: "prompt", agyToken: null, zoom: 1.0 };
+    return { enabled: DEFAULT_ENABLED, order: DEFAULT_ENABLED, snapshots: {}, bounds: null, updatePolicy: "prompt", agyToken: null, zoom: 1.0, opacity: 1.0 };
   }
 }
 
@@ -82,6 +82,7 @@ function publicState() {
     updatePolicy: state.updatePolicy || "prompt",
     update: state.update || null,
     zoom: typeof state.zoom === "number" ? state.zoom : 1.0,
+    opacity: typeof state.opacity === "number" ? state.opacity : 1.0,
   };
 }
 
@@ -340,7 +341,7 @@ function createWidget() {
     minHeight: 100,
     maxHeight: screenHeight - 40,
     frame: false,
-    transparent: false,
+    transparent: true,
     alwaysOnTop: true,
     resizable: true,
     maximizable: false,
@@ -425,7 +426,7 @@ function openSettingsWindow() {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
   const winWidth = 320;
-  const winHeight = 560;
+  const winHeight = 620;
   const x = Math.round((screenWidth - winWidth) / 2);
   const y = Math.round((screenHeight - winHeight) / 2);
 
@@ -435,7 +436,7 @@ function openSettingsWindow() {
     x: x,
     y: y,
     frame: false,
-    transparent: false,
+    transparent: true,
     alwaysOnTop: true,
     resizable: false,
     maximizable: false,
@@ -461,6 +462,7 @@ function openSettingsWindow() {
   }
 
   settingsWin.loadFile(path.join(__dirname, "settings.html"));
+  settingsWin.setBounds({ x, y, width: winWidth, height: winHeight });
 
   settingsWin.once("ready-to-show", () => {
     if (settingsWin && !settingsWin.isDestroyed()) {
@@ -468,6 +470,12 @@ function openSettingsWindow() {
       settingsWin.focus();
     }
   });
+  setTimeout(() => {
+    if (settingsWin && !settingsWin.isDestroyed() && !settingsWin.isVisible()) {
+      settingsWin.show();
+      settingsWin.focus();
+    }
+  }, 200);
 
   settingsWin.on("closed", () => {
     settingsWin = null;
@@ -512,6 +520,7 @@ app.whenReady().then(() => {
     updatePolicy: loaded.updatePolicy || "prompt",
     agyToken: loaded.agyToken || null,
     zoom: typeof loaded.zoom === "number" ? loaded.zoom : 1.0,
+    opacity: typeof loaded.opacity === "number" ? loaded.opacity : 1.0,
     update: null,
   };
   createWidget();
@@ -687,6 +696,14 @@ ipcMain.handle("set-zoom", (_e, zoom) => {
     const [, h] = widget.getSize();
     widget.setBounds({ x, y, width: targetW, height: h });
   }
+  return publicState();
+});
+
+ipcMain.handle("set-opacity", (_e, opacity) => {
+  const op = Math.min(1.0, Math.max(0.2, typeof opacity === "number" ? opacity : 1.0));
+  state.opacity = Math.round(op * 100) / 100;
+  saveState();
+  broadcast();
   return publicState();
 });
 

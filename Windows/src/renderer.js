@@ -316,8 +316,8 @@ function render() {
     return;
   }
 
-  // Main Stack Window
-  const cards = all.filter((c) => enabled.has(c.id));
+  // Main Stack Window (filter out undocked cards so they only appear in their floating windows)
+  const cards = all.filter((c) => enabled.has(c.id) && !undockedSet.has(c.id));
   let html = `<div class="stack">`;
 
   if (state.update && state.update.version && (state.updatePolicy || "prompt") !== "off") {
@@ -332,13 +332,22 @@ function render() {
   }
 
   if (!cards.length) {
-    html += `<div class="card"><div class="muted">No cards enabled. <button class="link" data-act="settings" style="text-decoration:underline">Open Settings</button> to turn services on.</div></div>`;
+    html += `<div class="card">
+      <div class="card-header drag">
+        <div class="title">BigUwidget</div>
+        <div class="row no-drag header-controls">
+          <button class="btn" data-act="settings" title="Settings">⚙</button>
+          <button class="btn" data-act="minimize" title="Minimize">−</button>
+          <button class="btn" data-act="quit" title="Quit">✕</button>
+        </div>
+      </div>
+      <div class="muted" style="margin-top: 6px;">${enabled.size === 0 ? "No cards enabled." : "All enabled cards are floating."} <button class="link" data-act="settings" style="text-decoration:underline">Open Settings</button> to configure.</div>
+    </div>`;
   }
 
   for (let cIdx = 0; cIdx < cards.length; cIdx++) {
     const card = cards[cIdx];
     const isMasterTop = cIdx === 0;
-    const isUndocked = undockedSet.has(card.id);
     const snap = (state.snapshots && state.snapshots[card.id]) || { status: "loading" };
     const isCol = collapsed.has(card.id);
 
@@ -356,11 +365,9 @@ function render() {
       ? `<svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1L5 5L9 1"/></svg>`
       : `<svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5L5 1L9 5"/></svg>`;
 
-    if (!isUndocked) {
-      html += `<button class="btn chevron-btn" data-act="collapse" data-id="${card.id}" title="${isCol ? "Expand card" : "Collapse card"}">${chevronSvg}</button>`;
-    }
-    // Undock / Dock toggle button
-    html += `<button class="btn" data-act="undock-toggle" data-id="${card.id}" title="${isUndocked ? "Dock back into main widget" : "Undock to independent floating window"}">${isUndocked ? "🔗" : "⧉"}</button>`;
+    html += `<button class="btn chevron-btn" data-act="collapse" data-id="${card.id}" title="${isCol ? "Expand card" : "Collapse card"}">${chevronSvg}</button>`;
+    // Undock button
+    html += `<button class="btn" data-act="undock-toggle" data-id="${card.id}" title="Undock to independent floating window">⧉</button>`;
 
     if (isMasterTop) {
       html += `<button class="btn" data-act="settings" title="Settings">⚙</button>
@@ -370,13 +377,7 @@ function render() {
     html += `</div>
     </div>`;
 
-    if (isUndocked) {
-      html += `<div class="mini" style="padding: 2px 0;">
-        <span class="muted" style="font-size: 11px;">Floating in separate window</span>
-        <span class="space"></span>
-        <button class="link no-drag" data-act="undock-toggle" data-id="${card.id}" style="font-size: 11px;">Dock back</button>
-      </div>`;
-    } else if (isCol && snap.status === "ready") {
+    if (isCol && snap.status === "ready") {
       const todayLeftVal = snap.todayLeft != null ? snap.todayLeft : Math.max(0, 100 - (snap.weekly || 0)) / 7;
       const overrunVal = typeof snap.todayOverrun === "number" ? snap.todayOverrun : 0;
       const isOverrun = overrunVal > 0.05;

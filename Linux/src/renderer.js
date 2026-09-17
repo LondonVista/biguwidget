@@ -80,7 +80,7 @@ function fmtPct(n) {
   return r === Math.round(r) ? String(Math.round(r)) : r.toFixed(1);
 }
 
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.2.0", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {} };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.2.1", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {} };
 const collapsed = new Set();
 
 function orderedCards() {

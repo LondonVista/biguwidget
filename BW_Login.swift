@@ -344,6 +344,13 @@ final class WidgetLayoutSettings: ObservableObject {
         }
     }
 
+    @Published var globalScale: Double {
+        didSet {
+            UserDefaults.standard.set(globalScale, forKey: globalScaleKey)
+            onLayoutChange?()
+        }
+    }
+
     @Published var backgroundOpacity: Double {
         didSet {
             UserDefaults.standard.set(backgroundOpacity, forKey: opacityKey)
@@ -355,6 +362,7 @@ final class WidgetLayoutSettings: ObservableObject {
     private let enabledKey = "bigu.settings.enabledCards"
     private let dockedKey = "bigu.settings.dockedCards"
     private let scaleKey = "bigu.settings.cardScales"
+    private let globalScaleKey = "bigu.settings.globalScale"
     private let opacityKey = "bigu.settings.backgroundOpacity"
     private let updatePolicyKey = "bigu.settings.updatePolicy"
 
@@ -408,6 +416,13 @@ final class WidgetLayoutSettings: ObservableObject {
             self.cardScales = [:]
         }
 
+        if UserDefaults.standard.object(forKey: globalScaleKey) != nil {
+            let val = UserDefaults.standard.double(forKey: globalScaleKey)
+            self.globalScale = min(2.0, max(0.5, val))
+        } else {
+            self.globalScale = 1.0
+        }
+
         if UserDefaults.standard.object(forKey: opacityKey) != nil {
             self.backgroundOpacity = UserDefaults.standard.double(forKey: opacityKey)
         } else {
@@ -416,7 +431,8 @@ final class WidgetLayoutSettings: ObservableObject {
     }
 
     func scale(for card: WidgetCardID) -> Double {
-        min(2.0, max(0.5, cardScales[card.rawValue] ?? 1.0))
+        let base = cardScales[card.rawValue] ?? 1.0
+        return min(2.5, max(0.4, ((base * globalScale) * 100).rounded() / 100))
     }
 
     func setScale(_ value: Double, for card: WidgetCardID) {
@@ -427,7 +443,17 @@ final class WidgetLayoutSettings: ObservableObject {
     }
 
     func nudgeScale(_ card: WidgetCardID, by delta: Double) {
-        setScale(scale(for: card) + delta, for: card)
+        let current = cardScales[card.rawValue] ?? 1.0
+        setScale(current + delta, for: card)
+    }
+
+    func setGlobalScale(_ value: Double) {
+        let clamped = min(2.0, max(0.5, (value * 20).rounded() / 20))
+        globalScale = clamped
+    }
+
+    func nudgeGlobalScale(by delta: Double) {
+        setGlobalScale(globalScale + delta)
     }
 
     func isEnabled(_ id: WidgetCardID) -> Bool {
@@ -528,318 +554,420 @@ struct WidgetSettingsView: View {
     @State private var draggingCard: WidgetCardID? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header
-            HStack {
+        VStack(spacing: 0) {
+            // HEADER
+            HStack(alignment: .center) {
                 Image(systemName: "gearshape.fill")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(Color(hex: 0x24C1E0))
                 Text("Widget Settings")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Color.white.opacity(0.92))
+                    .font(.system(size: 13.5, weight: .bold))
+                    .foregroundStyle(Color.white.opacity(0.95))
                 Spacer()
                 Button(action: onClose) {
                     Image(systemName: "xmark")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(Color.white.opacity(0.6))
-                        .padding(5)
-                        .background(Circle().fill(Color.white.opacity(0.1)))
+                        .foregroundStyle(Color.white.opacity(0.7))
+                        .padding(4.5)
+                        .background(Circle().fill(Color.white.opacity(0.12)))
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.bottom, 2)
-
-            Text("Toggle visibility, order, dock, and size (50%–200%).")
-                .font(.system(size: 10))
-                .foregroundStyle(Color.white.opacity(0.55))
-                .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 13)
+            .padding(.top, 11)
+            .padding(.bottom, 7)
 
             Divider()
                 .background(Color.white.opacity(0.15))
 
-            // Card List
-            VStack(spacing: 7) {
-                ForEach(settings.cardOrder) { card in
-                    let isEn = settings.isEnabled(card)
-                    let isDoc = settings.isDocked(card)
-
-                    VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "line.3.horizontal")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(Color.white.opacity(0.45))
-                            .frame(width: 16, height: 22)
-                            .contentShape(Rectangle())
-                            .help("Drag to reorder")
-                            .onDrag {
-                                draggingCard = card
-                                return NSItemProvider(object: card.rawValue as NSString)
-                            }
-
-                        // Card Name & Status
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(card.displayName)
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(isEn ? Color.white.opacity(0.92) : Color.white.opacity(0.40))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.75)
-                            Text(isDoc ? "Docked" : "Floating Window")
-                                .font(.system(size: 8.5))
-                                .foregroundStyle(isDoc ? Color(hex: 0x24C1E0).opacity(0.85) : Color(hex: 0xFBBC04).opacity(0.85))
-                        }
-
-                        Spacer()
-
-                        // Dock / Undock Toggle Button
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                settings.toggleDocked(card)
-                            }
-                        }) {
-                            HStack(spacing: 3) {
-                                Image(systemName: isDoc ? "link" : "link.badge.plus")
-                                    .font(.system(size: 9))
-                                Text(isDoc ? "Docked" : "Floating")
-                                    .font(.system(size: 9, weight: .medium))
-                            }
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3.5)
-                            .background(
-                                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                    .fill(isDoc ? Color.white.opacity(0.12) : Color(hex: 0xFBBC04).opacity(0.22))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                    .stroke(isDoc ? Color.white.opacity(0.2) : Color(hex: 0xFBBC04).opacity(0.45), lineWidth: 0.8)
-                            )
-                            .foregroundStyle(isDoc ? Color.white.opacity(0.8) : Color(hex: 0xFBBC04))
-                        }
-                        .buttonStyle(.plain)
-                        .help(isDoc ? "Click to Undock into independent floating window" : "Click to Dock back into combined widget")
-
-                        Button(action: { onSignIn?(card.serviceKind) }) {
-                            Image(systemName: "person.crop.circle")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(Color.white.opacity(0.55))
-                        }
-                        .buttonStyle(.plain)
-                        .help("Sign in to \(card.rawValue)")
-
-                        // Enable / Disable Toggle
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                settings.toggleEnabled(card)
-                            }
-                        }) {
-                            Image(systemName: isEn ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(isEn ? Color(hex: 0x32D74B) : Color.white.opacity(0.3))
-                        }
-                        .buttonStyle(.plain)
-                        .help(isEn ? "Hide Widget" : "Show Widget")
-                    }
-                    HStack(spacing: 6) {
-                        Text("Size")
-                            .font(.system(size: 8.5, weight: .medium))
-                            .foregroundStyle(Color.white.opacity(0.42))
-                        Button(action: { settings.nudgeScale(card, by: -0.1) }) {
-                            Text("−")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(Color.white.opacity(0.8))
-                                .frame(width: 22, height: 20)
-                                .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.1)))
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(settings.scale(for: card) <= 0.5)
-                        Text("\(Int((settings.scale(for: card) * 100).rounded()))%")
-                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(Color.white.opacity(0.88))
-                            .frame(width: 42)
-                        Button(action: { settings.nudgeScale(card, by: 0.1) }) {
-                            Text("+")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(Color.white.opacity(0.8))
-                                .frame(width: 22, height: 20)
-                                .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.1)))
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(settings.scale(for: card) >= 2.0)
-                        if abs(settings.scale(for: card) - 1.0) > 0.01 {
-                            Button("100%") {
-                                settings.setScale(1.0, for: card)
-                            }
-                            .font(.system(size: 8.5, weight: .semibold))
+            // MAIN CONTENT (NO SCROLLVIEW - ALL COMPACT AND VISIBLE)
+            VStack(alignment: .leading, spacing: 9) {
+                // 1. Widget Size & Scale
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 10.5, weight: .bold))
                             .foregroundStyle(Color(hex: 0x24C1E0))
+                        Text("Widget Size & Scale")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(0.92))
+                        Spacer()
+                        let zoomPct = Int((settings.globalScale * 100).rounded())
+                        Text("\(zoomPct)%")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color(hex: 0x24C1E0))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1.5)
+                            .background(
+                                Capsule().fill(Color(hex: 0x24C1E0).opacity(0.18))
+                            )
+                    }
+
+                    HStack(spacing: 5) {
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                settings.nudgeGlobalScale(by: -0.05)
+                            }
+                        }) {
+                            Text("−")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(Color.white.opacity(0.85))
+                                .frame(width: 22, height: 20)
+                                .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(Color.white.opacity(0.10)))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(settings.globalScale <= 0.5)
+
+                        Slider(value: $settings.globalScale, in: 0.5...2.0, step: 0.05)
+                            .tint(Color(hex: 0x24C1E0))
+                            .controlSize(.small)
+
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                settings.nudgeGlobalScale(by: 0.05)
+                            }
+                        }) {
+                            Text("+")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(Color.white.opacity(0.85))
+                                .frame(width: 22, height: 20)
+                                .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(Color.white.opacity(0.10)))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(settings.globalScale >= 2.0)
+
+                        if abs(settings.globalScale - 1.0) > 0.01 {
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    settings.setGlobalScale(1.0)
+                                }
+                            }) {
+                                Text("100%")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(Color(hex: 0x24C1E0))
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 2)
+                                    .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(Color(hex: 0x24C1E0).opacity(0.15)))
+                            }
                             .buttonStyle(.plain)
                         }
-                        Spacer()
                     }
-                    .padding(.top, 2)
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, 4)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .fill(draggingCard == card ? Color.white.opacity(0.12) : Color.white.opacity(0.06))
-                    )
-                    .onDrop(of: [.text], delegate: SettingsReorderDropDelegate(
-                        target: card,
-                        dragging: $draggingCard,
-                        settings: settings
-                    ))
-                }
 
-                Button(action: { onAddProvider?() }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 12, weight: .bold))
+                    // Keyboard Shortcuts Description (single ultra-clean line)
+                    HStack(spacing: 4) {
+                        Image(systemName: "command")
+                            .font(.system(size: 8.5, weight: .bold))
                             .foregroundStyle(Color(hex: 0x24C1E0))
-                            .frame(width: 16, height: 22)
-                        Text("Add provider")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(Color.white.opacity(0.78))
+                        Text("⌘+ In")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color.white.opacity(0.88))
+                        Text("·")
+                            .font(.system(size: 9))
+                            .foregroundStyle(Color.white.opacity(0.3))
+                        Text("⌘− Out")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color.white.opacity(0.88))
+                        Text("·")
+                            .font(.system(size: 9))
+                            .foregroundStyle(Color.white.opacity(0.3))
+                        Text("⌘0 Reset")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color.white.opacity(0.88))
                         Spacer()
+                        Text("(when widget active)")
+                            .font(.system(size: 8.5))
+                            .foregroundStyle(Color.white.opacity(0.45))
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
                     .background(
-                        RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
-                            .foregroundStyle(Color.white.opacity(0.22))
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(Color.white.opacity(0.05))
                     )
                 }
-                .buttonStyle(.plain)
-                .help("See other AI providers (not tracked yet)")
-            }
 
-            Divider()
-                .background(Color.white.opacity(0.15))
+                Divider()
+                    .background(Color.white.opacity(0.10))
 
-            // Appearance & Glass Transparency (Option B)
-            VStack(alignment: .leading, spacing: 7) {
-                HStack(spacing: 6) {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(Color(hex: 0x24C1E0))
-                    Text("Widget Appearance & Glass Transparency")
-                        .font(.system(size: 10.5, weight: .bold))
-                        .foregroundStyle(Color.white.opacity(0.92))
-                    Spacer()
-                    let clearPct = Int(((1.0 - settings.backgroundOpacity) * 100).rounded())
-                    Text("\(clearPct)% Clear")
-                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color(hex: 0x32D74B))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule().fill(Color(hex: 0x32D74B).opacity(0.18))
-                        )
-                }
+                // 2. Sections & Cards
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "square.stack.3d.up")
+                            .font(.system(size: 10.5, weight: .bold))
+                            .foregroundStyle(Color(hex: 0x24C1E0))
+                        Text("Sections & Cards")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(0.92))
+                        Spacer()
+                        Text("Drag to reorder")
+                            .font(.system(size: 8.5))
+                            .foregroundStyle(Color.white.opacity(0.45))
+                    }
 
-                HStack {
-                    Text("Background Opacity")
-                        .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(Color.white.opacity(0.70))
-                    Spacer()
-                    Text("\(Int((settings.backgroundOpacity * 100).rounded()))%")
-                        .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(Color.white.opacity(0.85))
-                }
+                    VStack(spacing: 3.5) {
+                        ForEach(settings.cardOrder) { card in
+                            let isEn = settings.isEnabled(card)
+                            let isDoc = settings.isDocked(card)
 
-                Slider(value: $settings.backgroundOpacity, in: 0.05...0.98, step: 0.01)
-                    .tint(Color(hex: 0x32D74B))
-                    .controlSize(.small)
+                            HStack(spacing: 6) {
+                                Image(systemName: "line.3.horizontal")
+                                    .font(.system(size: 10.5, weight: .semibold))
+                                    .foregroundStyle(Color.white.opacity(0.40))
+                                    .frame(width: 14, height: 18)
+                                    .contentShape(Rectangle())
+                                    .help("Drag to reorder")
+                                    .onDrag {
+                                        draggingCard = card
+                                        return NSItemProvider(object: card.rawValue as NSString)
+                                    }
 
-                HStack(spacing: 4) {
-                    Text("Quick Presets:")
-                        .font(.system(size: 8.5, weight: .semibold))
-                        .foregroundStyle(Color.white.opacity(0.45))
-                    
-                    let presets: [(name: String, val: Double)] = [
-                        ("Ghost (10%)", 0.10),
-                        ("Clear (28%)", 0.28),
-                        ("BigU (48%)", 0.48),
-                        ("Dark (75%)", 0.75),
-                        ("Solid (95%)", 0.95)
-                    ]
-                    
-                    ForEach(presets, id: \.name) { preset in
-                        let isSelected = abs(settings.backgroundOpacity - preset.val) < 0.03
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.18)) {
-                                settings.backgroundOpacity = preset.val
+                                // Card Name & Status
+                                VStack(alignment: .leading, spacing: 0) {
+                                    Text(card.displayName)
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundStyle(isEn ? Color.white.opacity(0.92) : Color.white.opacity(0.40))
+                                        .lineLimit(1)
+                                    Text(isDoc ? "Docked" : "Floating Window")
+                                        .font(.system(size: 8.5))
+                                        .foregroundStyle(isDoc ? Color(hex: 0x24C1E0).opacity(0.85) : Color(hex: 0xFBBC04).opacity(0.85))
+                                }
+
+                                Spacer()
+
+                                // Dock / Undock Toggle Button
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.18)) {
+                                        settings.toggleDocked(card)
+                                    }
+                                }) {
+                                    HStack(spacing: 2.5) {
+                                        Image(systemName: isDoc ? "link" : "link.badge.plus")
+                                            .font(.system(size: 9))
+                                        Text(isDoc ? "Docked" : "Floating")
+                                            .font(.system(size: 9, weight: .medium))
+                                    }
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 2.5)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                            .fill(isDoc ? Color.white.opacity(0.10) : Color(hex: 0xFBBC04).opacity(0.20))
+                                    )
+                                    .foregroundStyle(isDoc ? Color.white.opacity(0.75) : Color(hex: 0xFBBC04))
+                                }
+                                .buttonStyle(.plain)
+                                .help(isDoc ? "Click to Undock into independent floating window" : "Click to Dock back into combined widget")
+
+                                Button(action: { onSignIn?(card.serviceKind) }) {
+                                    Image(systemName: "person.crop.circle")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(Color.white.opacity(0.50))
+                                }
+                                .buttonStyle(.plain)
+                                .help("Sign in to \(card.rawValue)")
+
+                                // Enable / Disable Toggle
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.18)) {
+                                        settings.toggleEnabled(card)
+                                    }
+                                }) {
+                                    Image(systemName: isEn ? "checkmark.circle.fill" : "circle")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(isEn ? Color(hex: 0x32D74B) : Color.white.opacity(0.3))
+                                }
+                                .buttonStyle(.plain)
+                                .help(isEn ? "Hide Widget" : "Show Widget")
                             }
-                        }) {
-                            Text(preset.name)
-                                .font(.system(size: 8.0, weight: isSelected ? .bold : .medium))
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 3)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                        .fill(isSelected ? Color(hex: 0x32D74B).opacity(0.28) : Color.white.opacity(0.08))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                        .stroke(isSelected ? Color(hex: 0x32D74B).opacity(0.6) : Color.white.opacity(0.08), lineWidth: 0.6)
-                                )
-                                .foregroundStyle(isSelected ? Color(hex: 0x32D74B) : Color.white.opacity(0.75))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .fill(draggingCard == card ? Color.white.opacity(0.12) : Color.white.opacity(0.05))
+                            )
+                            .onDrop(of: [.text], delegate: SettingsReorderDropDelegate(
+                                target: card,
+                                dragging: $draggingCard,
+                                settings: settings
+                            ))
+
+                            if card == .grokBot {
+                                Button(action: { onSignIn?(.grokBot) }) {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: "arrow.turn.down.right")
+                                            .font(.system(size: 8.5, weight: .bold))
+                                            .foregroundStyle(Color(hex: 0x24C1E0))
+                                        Image(systemName: "key.fill")
+                                            .font(.system(size: 8.5))
+                                            .foregroundStyle(Color(hex: 0x24C1E0))
+                                        Text("Cursor Login")
+                                            .font(.system(size: 9.5, weight: .semibold))
+                                            .foregroundStyle(Color.white.opacity(0.90))
+                                        Spacer()
+                                        Text("cursor.com/login")
+                                            .font(.system(size: 8, design: .monospaced))
+                                            .foregroundStyle(Color.white.opacity(0.45))
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 7.5, weight: .bold))
+                                            .foregroundStyle(Color.white.opacity(0.4))
+                                    }
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 3.5)
+                                    .padding(.leading, 10)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                            .fill(Color(hex: 0x24C1E0).opacity(0.09))
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .help("Sign in to Cursor (cursor.com/login) to track Grok Bot quota")
+                            }
+                        }
+
+                        Button(action: { onAddProvider?() }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 9.5, weight: .bold))
+                                    .foregroundStyle(Color(hex: 0x24C1E0))
+                                Text("Add provider")
+                                    .font(.system(size: 10.5, weight: .semibold))
+                                    .foregroundStyle(Color.white.opacity(0.75))
+                                Spacer()
+                            }
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .strokeBorder(style: StrokeStyle(lineWidth: 0.7, dash: [4, 3]))
+                                    .foregroundStyle(Color.white.opacity(0.20))
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .help("See other AI providers (not tracked yet)")
+                    }
+                }
+
+                Divider()
+                    .background(Color.white.opacity(0.10))
+
+                // 3. Appearance & Glass Transparency
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 10.5, weight: .bold))
+                            .foregroundStyle(Color(hex: 0x24C1E0))
+                        Text("Appearance & Glass Transparency")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(0.92))
+                        Spacer()
+                        let clearPct = Int(((1.0 - settings.backgroundOpacity) * 100).rounded())
+                        Text("\(clearPct)% Clear")
+                            .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color(hex: 0x32D74B))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1.5)
+                            .background(
+                                Capsule().fill(Color(hex: 0x32D74B).opacity(0.18))
+                            )
+                    }
+
+                    HStack(spacing: 6) {
+                        Slider(value: $settings.backgroundOpacity, in: 0.05...0.98, step: 0.01)
+                            .tint(Color(hex: 0x32D74B))
+                            .controlSize(.small)
+
+                        Text("\(Int((settings.backgroundOpacity * 100).rounded()))%")
+                            .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(Color.white.opacity(0.75))
+                            .frame(width: 30, alignment: .trailing)
+                    }
+
+                    HStack(spacing: 3) {
+                        Text("Presets:")
+                            .font(.system(size: 8.5, weight: .semibold))
+                            .foregroundStyle(Color.white.opacity(0.45))
+                        
+                        let presets: [(name: String, val: Double)] = [
+                            ("Ghost 10%", 0.10),
+                            ("Clear 28%", 0.28),
+                            ("BigU 48%", 0.48),
+                            ("Dark 75%", 0.75),
+                            ("Solid 95%", 0.95)
+                        ]
+                        
+                        ForEach(presets, id: \.name) { preset in
+                            let isSelected = abs(settings.backgroundOpacity - preset.val) < 0.03
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    settings.backgroundOpacity = preset.val
+                                }
+                            }) {
+                                Text(preset.name)
+                                    .font(.system(size: 8.2, weight: isSelected ? .bold : .medium))
+                                    .padding(.horizontal, 3.5)
+                                    .padding(.vertical, 2.5)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 3.5, style: .continuous)
+                                            .fill(isSelected ? Color(hex: 0x32D74B).opacity(0.28) : Color.white.opacity(0.08))
+                                    )
+                                    .foregroundStyle(isSelected ? Color(hex: 0x32D74B) : Color.white.opacity(0.75))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
+                Divider()
+                    .background(Color.white.opacity(0.10))
+
+                // 4. Updates
+                VStack(alignment: .leading, spacing: 3.5) {
+                    HStack {
+                        Text("Updates")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Color.white.opacity(0.88))
+                        Spacer()
+                        Button(action: { UpdateChecker.shared.checkNow() }) {
+                            Text("Check Now")
+                                .font(.system(size: 9.5, weight: .semibold))
+                                .foregroundStyle(Color(hex: 0x24C1E0))
                         }
                         .buttonStyle(.plain)
                     }
+
+                    HStack(spacing: 4) {
+                        ForEach(UpdatePolicy.allCases, id: \.self) { policy in
+                            let on = settings.updatePolicy == policy
+                            Button(action: { settings.updatePolicy = policy }) {
+                                Text(policy == .off ? "Off" : policy == .prompt ? "Prompt" : "Auto")
+                                    .font(.system(size: 9.5, weight: .semibold))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                            .fill(on ? Color(hex: 0x24C1E0).opacity(0.28) : Color.white.opacity(0.08))
+                                    )
+                                    .foregroundStyle(on ? Color(hex: 0x24C1E0) : Color.white.opacity(0.55))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
-                .padding(.top, 1)
             }
+            .padding(.horizontal, 13)
+            .padding(.vertical, 9)
 
             Divider()
                 .background(Color.white.opacity(0.15))
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Updates")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.88))
-                Text("Checks GitHub. Prompt asks first. Auto downloads, replaces this app, and relaunches.")
-                    .font(.system(size: 9))
-                    .foregroundStyle(Color.white.opacity(0.45))
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 6) {
-                    ForEach(UpdatePolicy.allCases, id: \.self) { policy in
-                        let on = settings.updatePolicy == policy
-                        Button(action: { settings.updatePolicy = policy }) {
-                            Text(policy == .off ? "Off" : policy == .prompt ? "Prompt" : "Auto")
-                                .font(.system(size: 10, weight: .semibold))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                        .fill(on ? Color(hex: 0x24C1E0).opacity(0.28) : Color.white.opacity(0.08))
-                                )
-                                .foregroundStyle(on ? Color(hex: 0x24C1E0) : Color.white.opacity(0.55))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    Spacer()
-                    Button(action: { UpdateChecker.shared.checkNow() }) {
-                        Text("Check")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(Color.white.opacity(0.7))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            Spacer(minLength: 4)
-
-            // Bottom action
+            // FOOTER
             HStack {
                 if onDonate != nil {
                     Button(action: { onDonate?() }) {
-                        HStack(spacing: 4) {
+                        HStack(spacing: 3) {
                             Image(systemName: "heart.fill")
-                                .font(.system(size: 9))
+                                .font(.system(size: 8.5))
                             Text("Donate")
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.system(size: 10.5, weight: .semibold))
                         }
                         .foregroundStyle(Color(hex: 0xFF8B82))
                     }
@@ -850,7 +978,7 @@ struct WidgetSettingsView: View {
                     Button(action: { NSWorkspace.shared.open(fbURL) }) {
                         HStack(spacing: 3) {
                             Image(systemName: "bubble.left.and.exclamationmark.bubble.right.fill")
-                                .font(.system(size: 9))
+                                .font(.system(size: 8.5))
                             Text("Feedback")
                                 .font(.system(size: 10, weight: .medium))
                         }
@@ -861,34 +989,36 @@ struct WidgetSettingsView: View {
                 }
                 Spacer()
                 Text("v\(BigUwidgetConfig.appVersion)")
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .font(.system(size: 9.5, weight: .medium, design: .monospaced))
                     .foregroundStyle(Color.white.opacity(0.38))
                 Spacer()
                 Button(action: onClose) {
                     Text("Done")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 10.5, weight: .semibold))
                         .foregroundStyle(Color.black)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 5)
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 4)
                         .background(
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            RoundedRectangle(cornerRadius: 5, style: .continuous)
                                 .fill(Color(hex: 0x24C1E0))
                         )
                 }
                 .buttonStyle(.plain)
             }
+            .padding(.horizontal, 13)
+            .padding(.vertical, 7)
         }
-        .padding(14)
-        .frame(width: 320, height: 710)
+        .frame(width: 320)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(hex: 0x18181A).opacity(0.96))
+                .fill(Color(hex: 0x18181A).opacity(0.97))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .stroke(Color.white.opacity(0.22), lineWidth: 1)
                 )
         )
-        .shadow(color: .black.opacity(0.7), radius: 16, y: 6)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .shadow(color: .black.opacity(0.7), radius: 18, y: 6)
     }
 }
 

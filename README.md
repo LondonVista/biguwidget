@@ -30,7 +30,7 @@ Unofficial desktop dashboard. Not affiliated with Google, xAI, OpenAI, Anthropic
 
 | Platform | Version | Release |
 |---|---|---|
-| **Mac** (native Swift) | **1.1.9** | [v1.1.9](https://github.com/LondonVista/biguwidget/releases/tag/v1.1.9) |
+| **Mac** (native Swift) | **1.2.1** | [v1.2.1](https://github.com/LondonVista/biguwidget/releases/tag/v1.2.1) |
 | **Linux** | **1.2.0** | [v1.2.0](https://github.com/LondonVista/biguwidget/releases/tag/v1.2.0) |
 | **Windows** | **1.2.0** | [v1.2.0](https://github.com/LondonVista/biguwidget/releases/tag/v1.2.0) |
 
@@ -38,7 +38,7 @@ Unofficial desktop dashboard. Not affiliated with Google, xAI, OpenAI, Anthropic
 
 | OS | Status | File |
 |---|---|---|
-| **Mac** | Native (recommended) | [BigUwidget-1.1.9-Mac.dmg](https://github.com/LondonVista/biguwidget/releases/download/v1.1.9/BigUwidget-1.1.9-Mac.dmg) |
+| **Mac** | Native (recommended) | [BigUwidget-1.2.1-Mac.dmg](https://github.com/LondonVista/biguwidget/releases/download/v1.2.1/BigUwidget-1.2.1-Mac.dmg) |
 | **Linux** | Tested | [BigUwidget-1.2.0-Linux.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.2.0/BigUwidget-1.2.0-Linux.zip) |
 | **Windows** | Experimental | [BigUwidget-1.2.0-Windows.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.2.0/BigUwidget-1.2.0-Windows.zip) |
 

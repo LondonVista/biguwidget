@@ -299,6 +299,12 @@ final class FloatingPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 
+    override func mouseDown(with event: NSEvent) {
+        makeKey()
+        NSApp.activate(ignoringOtherApps: true)
+        super.mouseDown(with: event)
+    }
+
     override func mouseDragged(with event: NSEvent) {
         performDrag(with: event)
     }
@@ -326,7 +332,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             existing.orderFrontRegardless()
             return
         }
-        let size = NSSize(width: 320, height: 620)
         let view = WidgetSettingsView(
             onClose: { [weak self] in
                 self?.settingsPanel?.orderOut(nil)
@@ -343,10 +348,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 self?.openLoginWindow(for: .agy, startOnOther: true)
             }
         )
-        let host = NSHostingView(rootView: view)
-        host.frame = NSRect(origin: .zero, size: size)
+        let host = AutoFitHostingView(rootView: view)
+        let initialSize = NSSize(width: 310, height: 480)
         let win = FloatingPanel(
-            contentRect: host.frame,
+            contentRect: NSRect(origin: .zero, size: initialSize),
             styleMask: [.nonactivatingPanel, .borderless],
             backing: .buffered,
             defer: false
@@ -359,13 +364,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         win.isMovableByWindowBackground = true
         win.hidesOnDeactivate = false
         win.contentView = host
-        win.setContentSize(size)
+
+        host.onFittingSize = { [weak win] newSize in
+            guard let win, newSize.height > 100, newSize.width > 100 else { return }
+            var f = win.frame
+            let deltaY = newSize.height - f.height
+            f.origin.y -= deltaY
+            f.size = newSize
+            win.setFrame(f, display: true, animate: false)
+        }
 
         if let screen = panel.screen ?? NSScreen.main {
             let vis = screen.visibleFrame
             win.setFrameOrigin(NSPoint(
-                x: vis.midX - size.width / 2,
-                y: vis.midY - size.height / 2
+                x: vis.midX - initialSize.width / 2,
+                y: vis.midY - initialSize.height / 2
             ))
         }
         settingsPanel = win
@@ -573,6 +586,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             DispatchQueue.main.async {
                 self?.masterStore.fetchCards(added)
             }
+        }
+
+        // Global Command shortcuts for widget scaling (⌘+, ⌘-, ⌘0)
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self else { return event }
+            if event.modifierFlags.contains(.command) {
+                let chars = event.charactersIgnoringModifiers ?? ""
+                if chars == "+" || chars == "=" {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        self.settings.nudgeGlobalScale(by: 0.05)
+                    }
+                    return nil
+                } else if chars == "-" || chars == "_" {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        self.settings.nudgeGlobalScale(by: -0.05)
+                    }
+                    return nil
+                } else if chars == "0" {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        self.settings.setGlobalScale(1.0)
+                    }
+                    return nil
+                }
+            }
+            return event
         }
 
         UpdateChecker.shared.checkSoon()

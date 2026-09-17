@@ -49,7 +49,7 @@ function loadState() {
   try {
     return JSON.parse(fs.readFileSync(statePath(), "utf8"));
   } catch {
-    return { enabled: DEFAULT_ENABLED, order: DEFAULT_ENABLED, snapshots: {}, bounds: null, updatePolicy: "prompt", agyToken: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {} };
+    return { enabled: DEFAULT_ENABLED, order: DEFAULT_ENABLED, undocked: [], undockedBounds: {}, snapshots: {}, bounds: null, updatePolicy: "prompt", agyToken: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {} };
   }
 }
 
@@ -63,6 +63,7 @@ let state = loadState();
 let widget = null;
 let loginWin = null;
 let settingsWin = null;
+const undockedWins = new Map();
 
 function emptySnap(id) {
   return { id, status: "loading", weekly: 0, five: null, reset: null, fiveReset: null, fetchedAt: 0, days: [], recentDeltas: [], todayLeft: null, todayUsed: 0 };
@@ -78,6 +79,7 @@ function publicState() {
     cards: CARDS,
     enabled: state.enabled,
     order,
+    undocked: Array.isArray(state.undocked) ? state.undocked : [],
     snapshots,
     updatePolicy: state.updatePolicy || "prompt",
     update: state.update || null,
@@ -91,6 +93,11 @@ function broadcast() {
   const pub = publicState();
   if (widget && !widget.isDestroyed()) widget.webContents.send("state", pub);
   if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send("state", pub);
+  for (const win of undockedWins.values()) {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send("state", pub);
+    }
+  }
 }
 
 function applyResult(id, res) {
@@ -426,7 +433,7 @@ function openSettingsWindow() {
   }
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
-  const winWidth = 320;
+  const winWidth = 360;
   const winHeight = 660;
   const x = Math.round((screenWidth - winWidth) / 2);
   const y = Math.round((screenHeight - winHeight) / 2);
@@ -490,6 +497,159 @@ function closeSettingsWindow() {
   }
 }
 
+function createUndockedWindow(id) {
+  if (undockedWins.has(id)) {
+    const existing = undockedWins.get(id);
+    if (existing && !existing.isDestroyed()) {
+      existing.show();
+      existing.focus();
+      return;
+    }
+  }
+
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+  const zoom = typeof state.zoom === "number" ? state.zoom : 1.0;
+  const defaultWidth = Math.round(254 * zoom);
+  const initialHeight = Math.min(260, screenHeight - 60);
+
+  let x = Math.round((screenWidth - defaultWidth) / 2) + (undockedWins.size * 30);
+  let y = Math.round((screenHeight - initialHeight) / 2) + (undockedWins.size * 30);
+
+  const savedBounds = state.undockedBounds && state.undockedBounds[id];
+  if (savedBounds && typeof savedBounds.x === "number" && typeof savedBounds.y === "number") {
+    try {
+      const display = screen.getDisplayMatching(savedBounds);
+      const { x: dx, y: dy, width: dw, height: dh } = display.workArea;
+      if (
+        savedBounds.x >= dx - 200 &&
+        savedBounds.x < dx + dw - 20 &&
+        savedBounds.y >= dy - 20 &&
+        savedBounds.y < dy + dh - 20
+      ) {
+        x = savedBounds.x;
+        y = savedBounds.y;
+      }
+    } catch {
+      if (savedBounds.x >= 0 && savedBounds.x < screenWidth - 40 && savedBounds.y >= 0 && savedBounds.y < screenHeight - 40) {
+        x = savedBounds.x;
+        y = savedBounds.y;
+      }
+    }
+  }
+
+  const cardObj = CARDS.find((c) => c.id === id);
+  const cardTitle = cardObj ? cardObj.title : id;
+
+  const win = new BrowserWindow({
+    width: (savedBounds && savedBounds.width) || defaultWidth,
+    height: (savedBounds && savedBounds.height) || initialHeight,
+    x: x,
+    y: y,
+    minWidth: 180,
+    maxWidth: 420,
+    minHeight: 80,
+    maxHeight: screenHeight - 40,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: true,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: false,
+    type: process.platform === "darwin" ? "utility" : "normal",
+    show: false,
+    backgroundColor: "#00000000",
+    title: `BigUwidget - ${cardTitle}`,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      partition: "persist:bigu",
+      spellcheck: false,
+      backgroundThrottling: true,
+      devTools: false,
+      enableWebSQL: false,
+    },
+  });
+
+  if (process.platform === "darwin") {
+    win.setAlwaysOnTop(true, "floating");
+  } else {
+    win.setAlwaysOnTop(true);
+  }
+
+  win.webContents.on("did-finish-load", () => {
+    if (win && !win.isDestroyed()) {
+      try {
+        win.webContents.setZoomFactor(state.zoom || 1.0);
+      } catch {}
+    }
+  });
+
+  win.loadFile(path.join(__dirname, "index.html"), { query: { card: id } });
+
+  win.once("ready-to-show", () => {
+    if (win && !win.isDestroyed()) {
+      win.show();
+      win.focus();
+    }
+  });
+  setTimeout(() => {
+    if (win && !win.isDestroyed() && !win.isVisible()) {
+      win.show();
+    }
+  }, 200);
+
+  const saveWinBounds = () => {
+    if (win && !win.isDestroyed()) {
+      const b = win.getBounds();
+      state.undockedBounds = state.undockedBounds || {};
+      state.undockedBounds[id] = { x: b.x, y: b.y, width: b.width, height: b.height };
+      saveState();
+    }
+  };
+
+  win.on("move", saveWinBounds);
+  win.on("moved", saveWinBounds);
+  win.on("resize", saveWinBounds);
+  win.on("resized", saveWinBounds);
+
+  win.on("close", () => {
+    saveWinBounds();
+  });
+
+  win.on("closed", () => {
+    undockedWins.delete(id);
+  });
+
+  undockedWins.set(id, win);
+}
+
+function syncUndockedWindows() {
+  const undockedList = Array.isArray(state.undocked) ? state.undocked : [];
+  const enabledSet = new Set(state.enabled || []);
+
+  // Open windows for cards that are enabled and in state.undocked
+  for (const id of undockedList) {
+    if (enabledSet.has(id)) {
+      if (!undockedWins.has(id)) {
+        createUndockedWindow(id);
+      }
+    }
+  }
+
+  // Close windows for cards no longer undocked or no longer enabled
+  for (const [id, win] of undockedWins.entries()) {
+    if (!undockedList.includes(id) || !enabledSet.has(id)) {
+      if (win && !win.isDestroyed()) {
+        win.close();
+      }
+      undockedWins.delete(id);
+    }
+  }
+}
+
 app.whenReady().then(() => {
   const loaded = loadState();
   const userData = app.getPath("userData");
@@ -516,6 +676,8 @@ app.whenReady().then(() => {
   state = {
     enabled: Array.isArray(loaded.enabled) ? loaded.enabled : DEFAULT_ENABLED,
     order: Array.isArray(loaded.order) ? loaded.order : DEFAULT_ENABLED,
+    undocked: Array.isArray(loaded.undocked) ? loaded.undocked : [],
+    undockedBounds: loaded.undockedBounds && typeof loaded.undockedBounds === "object" ? loaded.undockedBounds : {},
     snapshots: snapshots,
     bounds: loaded.bounds || null,
     updatePolicy: loaded.updatePolicy || "prompt",
@@ -526,6 +688,7 @@ app.whenReady().then(() => {
     update: null,
   };
   createWidget();
+  syncUndockedWindows();
   fetchAll();
   setInterval(fetchAll, 60000); // Poll 60s
   setInterval(() => {
@@ -584,6 +747,7 @@ ipcMain.handle("set-enabled", (_e, id, on) => {
   state.enabled = [...set];
   if (on && Array.isArray(state.order) && !state.order.includes(id)) state.order.push(id);
   saveState();
+  syncUndockedWindows();
   broadcast();
   if (on) fetchOne(id);
   return publicState();
@@ -604,6 +768,33 @@ ipcMain.handle("set-hide-week-days", (_e, id, hide) => {
     delete state.hideWeekDays[id];
   }
   saveState();
+  broadcast();
+  return publicState();
+});
+ipcMain.handle("toggle-undock", (_e, id) => {
+  const undocked = Array.isArray(state.undocked) ? [...state.undocked] : [];
+  const idx = undocked.indexOf(id);
+  if (idx >= 0) {
+    undocked.splice(idx, 1);
+  } else {
+    undocked.push(id);
+  }
+  state.undocked = undocked;
+  saveState();
+  syncUndockedWindows();
+  broadcast();
+  return publicState();
+});
+ipcMain.handle("set-undocked", (_e, id, isUndocked) => {
+  const undockedSet = new Set(Array.isArray(state.undocked) ? state.undocked : []);
+  if (isUndocked) {
+    undockedSet.add(id);
+  } else {
+    undockedSet.delete(id);
+  }
+  state.undocked = [...undockedSet];
+  saveState();
+  syncUndockedWindows();
   broadcast();
   return publicState();
 });
@@ -699,15 +890,25 @@ ipcMain.handle("set-zoom", (_e, zoom) => {
   state.zoom = Math.round(z * 100) / 100;
   saveState();
   broadcast();
+  const zoomVal = typeof state.zoom === "number" ? state.zoom : 1.0;
+  const targetW = Math.round(254 * zoomVal);
   if (widget && !widget.isDestroyed()) {
     try {
       widget.webContents.setZoomFactor(state.zoom);
     } catch {}
-    const zoomVal = typeof state.zoom === "number" ? state.zoom : 1.0;
-    const targetW = Math.round(254 * zoomVal);
     const [x, y] = widget.getPosition();
     const [, h] = widget.getSize();
     widget.setBounds({ x, y, width: targetW, height: h });
+  }
+  for (const win of undockedWins.values()) {
+    if (win && !win.isDestroyed()) {
+      try {
+        win.webContents.setZoomFactor(state.zoom);
+      } catch {}
+      const [wx, wy] = win.getPosition();
+      const [, wh] = win.getSize();
+      win.setBounds({ x: wx, y: wy, width: targetW, height: wh });
+    }
   }
   return publicState();
 });
@@ -729,6 +930,22 @@ ipcMain.handle("fit-height", (_e, height) => {
     const targetH = Math.min(Math.max(100, Math.ceil(height * zoomVal)), maxHeight);
     const [x, y] = widget.getPosition();
     widget.setBounds({ x, y, width: targetW, height: targetH });
+  }
+  return true;
+});
+
+ipcMain.handle("fit-undocked-height", (_e, id, height) => {
+  if (id && undockedWins.has(id) && typeof height === "number" && height > 30) {
+    const win = undockedWins.get(id);
+    if (win && !win.isDestroyed()) {
+      const primaryDisplay = screen.getPrimaryDisplay();
+      const maxHeight = primaryDisplay.workAreaSize.height - 40;
+      const zoomVal = typeof state.zoom === "number" ? state.zoom : 1.0;
+      const targetW = Math.round(254 * zoomVal);
+      const targetH = Math.min(Math.max(80, Math.ceil(height * zoomVal)), maxHeight);
+      const [x, y] = win.getPosition();
+      win.setBounds({ x, y, width: targetW, height: targetH });
+    }
   }
   return true;
 });

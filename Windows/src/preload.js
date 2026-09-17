@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld("bigu", {
   setZoom: (zoom) => ipcRenderer.invoke("set-zoom", zoom),
   setOpacity: (opacity) => ipcRenderer.invoke("set-opacity", opacity),
   setHideWeekDays: (id, hide) => ipcRenderer.invoke("set-hide-week-days", id, hide),
+  toggleUndock: (id) => ipcRenderer.invoke("toggle-undock", id),
+  setUndocked: (id, undocked) => ipcRenderer.invoke("set-undocked", id, undocked),
   setZoomFactor: (factor) => {
     try {
       if (typeof factor === "number" && factor > 0) {
@@ -34,6 +36,7 @@ contextBridge.exposeInMainWorld("bigu", {
   openGoogleLogin: () => ipcRenderer.invoke("open-google-login"),
   closeLogin: () => ipcRenderer.invoke("close-login"),
   fitHeight: (h) => ipcRenderer.invoke("fit-height", h),
+  fitUndockedHeight: (id, h) => ipcRenderer.invoke("fit-undocked-height", id, h),
   onState: (fn) => {
     ipcRenderer.on("state", (_e, data) => fn(data));
   },

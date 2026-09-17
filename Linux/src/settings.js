@@ -85,9 +85,11 @@ function renderSettings() {
 
   for (const card of all) {
     const on = enabled.has(card.id);
+    const hideCal = !!(state.hideWeekDays && state.hideWeekDays[card.id]);
     html += `
       <div class="srow">
         <span class="sname">${card.title}</span>
+        <button class="tog no-drag ${!hideCal ? "on" : ""}" data-act="toggle-cal" data-id="${card.id}" title="${hideCal ? "Show 7-day mini calendar" : "Hide 7-day mini calendar"}">📅 ${hideCal ? "Off" : "7D"}</button>
         <button class="btn no-drag" data-act="login" data-id="${card.id}" title="Sign in">👤</button>
         <button class="tog no-drag ${on ? "on" : ""}" data-act="toggle" data-id="${card.id}">${on ? "On" : "Off"}</button>
       </div>
@@ -204,6 +206,10 @@ document.addEventListener("click", async (e) => {
   if (act === "toggle" && id) {
     const on = !(state.enabled || []).includes(id);
     window.bigu.setEnabled(id, on);
+  }
+  if (act === "toggle-cal" && id) {
+    const isCurrentlyHidden = !!(state.hideWeekDays && state.hideWeekDays[id]);
+    window.bigu.setHideWeekDays(id, !isCurrentlyHidden);
   }
   if (act === "login" && id) {
     window.bigu.setEnabled(id, true);

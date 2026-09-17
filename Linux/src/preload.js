@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("bigu", {
   setOrder: (ids) => ipcRenderer.invoke("set-order", ids),
   setZoom: (zoom) => ipcRenderer.invoke("set-zoom", zoom),
   setOpacity: (opacity) => ipcRenderer.invoke("set-opacity", opacity),
+  setHideWeekDays: (id, hide) => ipcRenderer.invoke("set-hide-week-days", id, hide),
   setZoomFactor: (factor) => {
     try {
       if (typeof factor === "number" && factor > 0) {

@@ -49,7 +49,7 @@ function loadState() {
   try {
     return JSON.parse(fs.readFileSync(statePath(), "utf8"));
   } catch {
-    return { enabled: DEFAULT_ENABLED, order: DEFAULT_ENABLED, snapshots: {}, bounds: null, updatePolicy: "prompt", agyToken: null, zoom: 1.0, opacity: 1.0 };
+    return { enabled: DEFAULT_ENABLED, order: DEFAULT_ENABLED, snapshots: {}, bounds: null, updatePolicy: "prompt", agyToken: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {} };
   }
 }
 
@@ -83,6 +83,7 @@ function publicState() {
     update: state.update || null,
     zoom: typeof state.zoom === "number" ? state.zoom : 1.0,
     opacity: typeof state.opacity === "number" ? state.opacity : 1.0,
+    hideWeekDays: state.hideWeekDays && typeof state.hideWeekDays === "object" ? state.hideWeekDays : {},
   };
 }
 
@@ -426,7 +427,7 @@ function openSettingsWindow() {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
   const winWidth = 320;
-  const winHeight = 620;
+  const winHeight = 660;
   const x = Math.round((screenWidth - winWidth) / 2);
   const y = Math.round((screenHeight - winHeight) / 2);
 
@@ -521,6 +522,7 @@ app.whenReady().then(() => {
     agyToken: loaded.agyToken || null,
     zoom: typeof loaded.zoom === "number" ? loaded.zoom : 1.0,
     opacity: typeof loaded.opacity === "number" ? loaded.opacity : 1.0,
+    hideWeekDays: loaded.hideWeekDays && typeof loaded.hideWeekDays === "object" ? loaded.hideWeekDays : {},
     update: null,
   };
   createWidget();
@@ -592,6 +594,17 @@ ipcMain.handle("set-order", (_e, ids) => {
     saveState();
     broadcast();
   }
+  return publicState();
+});
+ipcMain.handle("set-hide-week-days", (_e, id, hide) => {
+  state.hideWeekDays = state.hideWeekDays || {};
+  if (hide) {
+    state.hideWeekDays[id] = true;
+  } else {
+    delete state.hideWeekDays[id];
+  }
+  saveState();
+  broadcast();
   return publicState();
 });
 ipcMain.handle("open-donate", () => shell.openExternal(DONATE));

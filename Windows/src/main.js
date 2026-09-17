@@ -23,6 +23,8 @@ const fs = require("fs");
 const fetchers = require("./fetchers");
 const updater = require("./updater");
 
+const tracker = require("./tracker");
+
 const DONATE = "https://ko-fi.com/london_vista";
 const FEEDBACK = `https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v${updater.VERSION}&body=%2A%2AOS%2A%2A%3A+${process.platform}%0A%2A%2AVersion%2A%2A%3A+v${updater.VERSION}%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A`;
 const VERSION = updater.VERSION;
@@ -30,12 +32,14 @@ const VERSION = updater.VERSION;
 const CARDS = [
   { id: "grok", title: "Grok", login: "https://grok.com" },
   { id: "grokBot", title: "Grok Bot", login: "https://cursor.com/login" },
+  { id: "cursor", title: "Cursor", login: "https://cursor.com/login" },
   { id: "agy", title: "AGY", login: "https://antigravity.google" },
   { id: "claudeGPT", title: "Claude & GPT (from AGY)", login: "https://antigravity.google" },
   { id: "chatGPT", title: "ChatGPT", login: "https://chatgpt.com" },
 ];
 
-const DEFAULT_ENABLED = ["grok", "grokBot", "agy", "claudeGPT"];
+const DEFAULT_ENABLED = ["grok", "grokBot", "cursor", "agy", "claudeGPT"];
+
 
 function statePath() {
   return path.join(app.getPath("userData"), "state.json");
@@ -45,7 +49,7 @@ function loadState() {
   try {
     return JSON.parse(fs.readFileSync(statePath(), "utf8"));
   } catch {
-    return { enabled: DEFAULT_ENABLED, order: DEFAULT_ENABLED, snapshots: {}, bounds: null, updatePolicy: "prompt", agyToken: null };
+    return { enabled: DEFAULT_ENABLED, order: DEFAULT_ENABLED, snapshots: {}, bounds: null, updatePolicy: "prompt", agyToken: null, zoom: 1.0 };
   }
 }
 
@@ -61,7 +65,7 @@ let loginWin = null;
 let settingsWin = null;
 
 function emptySnap(id) {
-  return { id, status: "loading", weekly: 0, five: null, reset: null, fiveReset: null, fetchedAt: 0 };
+  return { id, status: "loading", weekly: 0, five: null, reset: null, fiveReset: null, fetchedAt: 0, days: [], recentDeltas: [], todayLeft: null, todayUsed: 0 };
 }
 
 function publicState() {
@@ -77,6 +81,7 @@ function publicState() {
     snapshots,
     updatePolicy: state.updatePolicy || "prompt",
     update: state.update || null,
+    zoom: typeof state.zoom === "number" ? state.zoom : 1.0,
   };
 }
 
@@ -95,6 +100,9 @@ function applyResult(id, res) {
     };
     return;
   }
+  const prevSnap = state.snapshots[id];
+  const tracked = tracker.processUsageUpdate(app.getPath("userData"), id, res, prevSnap);
+
   state.snapshots[id] = {
     id,
     status: "ready",
@@ -104,8 +112,15 @@ function applyResult(id, res) {
     fiveReset: res.fiveReset || null,
     plan: res.plan || CARDS.find((c) => c.id === id)?.title,
     fetchedAt: Date.now(),
+    days: tracked.days,
+    recentDeltas: tracked.recentDeltas,
+    todayLeft: tracked.todayLeft,
+    todayOverrun: tracked.todayOverrun,
+    todayUsed: tracked.todayUsed,
   };
 }
+
+let isFetchingAll = false;
 
 async function fetchOne(id) {
   try {
@@ -116,9 +131,15 @@ async function fetchOne(id) {
       } else {
         applyResult("claudeGPT", res.ok ? { ok: true, weekly: res.claude.weekly, five: res.claude.five, reset: res.claude.reset, fiveReset: res.claude.fiveReset } : res);
       }
-    } else if (id === "grok") applyResult("grok", await fetchers.fetchGrok());
-    else if (id === "grokBot") applyResult("grokBot", await fetchers.fetchGrokBot());
-    else if (id === "chatGPT") applyResult("chatGPT", await fetchers.fetchChatGPT());
+    } else if (id === "grok") {
+      applyResult("grok", await fetchers.fetchGrok());
+    } else if (id === "grokBot") {
+      applyResult("grokBot", await fetchers.fetchGrokBot());
+    } else if (id === "cursor") {
+      applyResult("cursor", await fetchers.fetchCursor());
+    } else if (id === "chatGPT") {
+      applyResult("chatGPT", await fetchers.fetchChatGPT());
+    }
   } catch (e) {
     applyResult(id, { ok: false, error: String(e.message || e) });
   }
@@ -127,22 +148,56 @@ async function fetchOne(id) {
 }
 
 async function fetchAll() {
-  const en = new Set(state.enabled);
-  const jobs = [];
-  if (en.has("agy") || en.has("claudeGPT")) {
-    jobs.push(
-      fetchers.fetchAGY(state.agyToken).then((res) => {
-        if (en.has("agy")) applyResult("agy", res.ok ? { ok: true, weekly: res.gemini.weekly, five: res.gemini.five, reset: res.gemini.reset, fiveReset: res.gemini.fiveReset } : res);
-        if (en.has("claudeGPT")) applyResult("claudeGPT", res.ok ? { ok: true, weekly: res.claude.weekly, five: res.claude.five, reset: res.claude.reset, fiveReset: res.claude.fiveReset } : res);
-      })
-    );
+  if (isFetchingAll) return;
+  isFetchingAll = true;
+  try {
+    const en = new Set(state.enabled);
+    const jobs = [];
+    if (en.has("agy") || en.has("claudeGPT")) {
+      jobs.push(
+        fetchers.fetchAGY(state.agyToken).then((res) => {
+          if (en.has("agy")) applyResult("agy", res.ok ? { ok: true, weekly: res.gemini.weekly, five: res.gemini.five, reset: res.gemini.reset, fiveReset: res.gemini.fiveReset } : res);
+          if (en.has("claudeGPT")) applyResult("claudeGPT", res.ok ? { ok: true, weekly: res.claude.weekly, five: res.claude.five, reset: res.claude.reset, fiveReset: res.claude.fiveReset } : res);
+        }).catch((e) => {
+          if (en.has("agy")) applyResult("agy", { ok: false, error: String(e.message || e) });
+          if (en.has("claudeGPT")) applyResult("claudeGPT", { ok: false, error: String(e.message || e) });
+        })
+      );
+    }
+    if (en.has("grok")) {
+      jobs.push(
+        fetchers.fetchGrok()
+          .then((r) => applyResult("grok", r))
+          .catch((e) => applyResult("grok", { ok: false, error: String(e.message || e) }))
+      );
+    }
+    if (en.has("grokBot")) {
+      jobs.push(
+        fetchers.fetchGrokBot()
+          .then((r) => applyResult("grokBot", r))
+          .catch((e) => applyResult("grokBot", { ok: false, error: String(e.message || e) }))
+      );
+    }
+    if (en.has("cursor")) {
+      jobs.push(
+        fetchers.fetchCursor()
+          .then((r) => applyResult("cursor", r))
+          .catch((e) => applyResult("cursor", { ok: false, error: String(e.message || e) }))
+      );
+    }
+    if (en.has("chatGPT")) {
+      jobs.push(
+        fetchers.fetchChatGPT()
+          .then((r) => applyResult("chatGPT", r))
+          .catch((e) => applyResult("chatGPT", { ok: false, error: String(e.message || e) }))
+      );
+    }
+    await Promise.allSettled(jobs);
+    saveState();
+    broadcast();
+  } finally {
+    isFetchingAll = false;
   }
-  if (en.has("grok")) jobs.push(fetchers.fetchGrok().then((r) => applyResult("grok", r)));
-  if (en.has("grokBot")) jobs.push(fetchers.fetchGrokBot().then((r) => applyResult("grokBot", r)));
-  if (en.has("chatGPT")) jobs.push(fetchers.fetchChatGPT().then((r) => applyResult("chatGPT", r)));
-  await Promise.all(jobs);
-  saveState();
-  broadcast();
 }
 
 function openLogin(id) {
@@ -246,18 +301,32 @@ function openLogin(id) {
 function createWidget() {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
-  const defaultWidth = 236;
-  const initialHeight = Math.min(state.bounds?.height || 420, screenHeight - 60);
+  const zoom = typeof state.zoom === "number" ? state.zoom : 1.0;
+  const defaultWidth = Math.round(254 * zoom);
+  const initialHeight = Math.min(state.bounds?.height || Math.round(420 * zoom), screenHeight - 60);
 
   // Default to screen center
   let x = Math.round((screenWidth - defaultWidth) / 2);
   let y = Math.round((screenHeight - initialHeight) / 2);
 
   if (state.bounds && typeof state.bounds.x === "number" && typeof state.bounds.y === "number") {
-    // Only use saved x, y if within visible screen boundaries
-    if (state.bounds.x >= 0 && state.bounds.x < screenWidth - 60 && state.bounds.y >= 0 && state.bounds.y < screenHeight - 60) {
-      x = state.bounds.x;
-      y = state.bounds.y;
+    try {
+      const display = screen.getDisplayMatching(state.bounds);
+      const { x: dx, y: dy, width: dw, height: dh } = display.workArea;
+      if (
+        state.bounds.x >= dx - 200 &&
+        state.bounds.x < dx + dw - 20 &&
+        state.bounds.y >= dy - 20 &&
+        state.bounds.y < dy + dh - 20
+      ) {
+        x = state.bounds.x;
+        y = state.bounds.y;
+      }
+    } catch {
+      if (state.bounds.x >= 0 && state.bounds.x < screenWidth - 40 && state.bounds.y >= 0 && state.bounds.y < screenHeight - 40) {
+        x = state.bounds.x;
+        y = state.bounds.y;
+      }
     }
   }
 
@@ -266,14 +335,14 @@ function createWidget() {
     height: initialHeight,
     x: x,
     y: y,
-    minWidth: 220,
-    maxWidth: 280,
+    minWidth: 180,
+    maxWidth: 420,
     minHeight: 100,
     maxHeight: screenHeight - 40,
     frame: false,
-    transparent: true,
+    transparent: false,
     alwaysOnTop: true,
-    resizable: false,
+    resizable: true,
     maximizable: false,
     fullscreenable: false,
     skipTaskbar: false,
@@ -299,6 +368,14 @@ function createWidget() {
     widget.setAlwaysOnTop(true);
   }
 
+  widget.webContents.on("did-finish-load", () => {
+    if (widget && !widget.isDestroyed()) {
+      try {
+        widget.webContents.setZoomFactor(state.zoom || 1.0);
+      } catch {}
+    }
+  });
+
   widget.loadFile(path.join(__dirname, "index.html"));
 
   // Explicitly set bounds to guarantee position and prevent WM centering bugs
@@ -317,19 +394,21 @@ function createWidget() {
     }
   }, 200);
 
-  widget.on("moved", () => {
+  const saveBounds = () => {
     if (widget && !widget.isDestroyed()) {
       const b = widget.getBounds();
-      state.bounds = { ...(state.bounds || {}), x: b.x, y: b.y };
+      state.bounds = { ...(state.bounds || {}), x: b.x, y: b.y, width: b.width, height: b.height };
       saveState();
     }
-  });
+  };
+
+  widget.on("move", saveBounds);
+  widget.on("moved", saveBounds);
+  widget.on("resize", saveBounds);
+  widget.on("resized", saveBounds);
 
   widget.on("close", () => {
-    if (widget && !widget.isDestroyed()) {
-      state.bounds = widget.getBounds();
-      saveState();
-    }
+    saveBounds();
   });
 
   widget.on("closed", () => {
@@ -346,7 +425,7 @@ function openSettingsWindow() {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
   const winWidth = 320;
-  const winHeight = 520;
+  const winHeight = 560;
   const x = Math.round((screenWidth - winWidth) / 2);
   const y = Math.round((screenHeight - winHeight) / 2);
 
@@ -356,7 +435,7 @@ function openSettingsWindow() {
     x: x,
     y: y,
     frame: false,
-    transparent: true,
+    transparent: false,
     alwaysOnTop: true,
     resizable: false,
     maximizable: false,
@@ -402,16 +481,37 @@ function closeSettingsWindow() {
   }
 }
 
-app.setName("BigUwidget");
 app.whenReady().then(() => {
   const loaded = loadState();
+  const userData = app.getPath("userData");
+  const snapshots = loaded.snapshots || {};
+  for (const c of CARDS) {
+    if (snapshots[c.id]) {
+      const dir = tracker.getServiceDir(userData, c.id);
+      const deltas = tracker.getRecentDeltas(dir);
+      if (deltas && deltas.length) {
+        snapshots[c.id].recentDeltas = deltas;
+      }
+      const days = tracker.getDaysForDisplay(dir, snapshots[c.id].weekly || 0, snapshots[c.id].reset);
+      if (days && days.length) {
+        snapshots[c.id].days = days;
+        const todayDay = days.find((d) => d.isToday);
+        const todayUsed = todayDay ? todayDay.percent : 0;
+        const dailyStatus = tracker.calculateDailyStatus(snapshots[c.id].weekly || 0, todayUsed, snapshots[c.id].reset);
+        snapshots[c.id].todayLeft = dailyStatus.todayLeft;
+        snapshots[c.id].todayOverrun = dailyStatus.todayOverrun;
+        snapshots[c.id].todayUsed = todayUsed;
+      }
+    }
+  }
   state = {
     enabled: Array.isArray(loaded.enabled) ? loaded.enabled : DEFAULT_ENABLED,
     order: Array.isArray(loaded.order) ? loaded.order : DEFAULT_ENABLED,
-    snapshots: loaded.snapshots || {},
+    snapshots: snapshots,
     bounds: loaded.bounds || null,
     updatePolicy: loaded.updatePolicy || "prompt",
     agyToken: loaded.agyToken || null,
+    zoom: typeof loaded.zoom === "number" ? loaded.zoom : 1.0,
     update: null,
   };
   createWidget();
@@ -572,14 +672,33 @@ ipcMain.handle("close-login", () => {
   return true;
 });
 
+ipcMain.handle("set-zoom", (_e, zoom) => {
+  const z = Math.min(1.5, Math.max(0.7, typeof zoom === "number" ? zoom : 1.0));
+  state.zoom = Math.round(z * 100) / 100;
+  saveState();
+  broadcast();
+  if (widget && !widget.isDestroyed()) {
+    try {
+      widget.webContents.setZoomFactor(state.zoom);
+    } catch {}
+    const zoomVal = typeof state.zoom === "number" ? state.zoom : 1.0;
+    const targetW = Math.round(254 * zoomVal);
+    const [x, y] = widget.getPosition();
+    const [, h] = widget.getSize();
+    widget.setBounds({ x, y, width: targetW, height: h });
+  }
+  return publicState();
+});
+
 ipcMain.handle("fit-height", (_e, height) => {
   if (widget && !widget.isDestroyed() && typeof height === "number" && height > 50) {
     const primaryDisplay = screen.getPrimaryDisplay();
     const maxHeight = primaryDisplay.workAreaSize.height - 40;
-    const targetH = Math.min(Math.max(100, Math.ceil(height)), maxHeight);
-    const [w] = widget.getSize();
+    const zoomVal = typeof state.zoom === "number" ? state.zoom : 1.0;
+    const targetW = Math.round(254 * zoomVal);
+    const targetH = Math.min(Math.max(100, Math.ceil(height * zoomVal)), maxHeight);
     const [x, y] = widget.getPosition();
-    widget.setSize(w, targetH);
+    widget.setBounds({ x, y, width: targetW, height: targetH });
   }
   return true;
 });

@@ -594,8 +594,8 @@ async function fetchCursor() {
     url: "https://www.cursor.com/api/usage",
     headers: {
       Accept: "application/json",
-      Origin: "https://cursor.com",
-      Referer: "https://cursor.com/settings",
+      Origin: "https://www.cursor.com",
+      Referer: "https://www.cursor.com/settings",
       Cookie: header,
       "User-Agent": UA,
     },

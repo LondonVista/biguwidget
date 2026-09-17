@@ -80,7 +80,7 @@ function fmtPct(n) {
   return r === Math.round(r) ? String(Math.round(r)) : r.toFixed(1);
 }
 
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.2.0", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0 };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.2.0", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {} };
 const collapsed = new Set();
 
 function orderedCards() {
@@ -290,8 +290,11 @@ function render() {
         html += `<div class="five-row">5h: ${fiveUsed}% used · reset in ${fiveResetStr}</div>`;
       }
 
-      // 4. 7-Day Weekly Breakdown (Real Calendar Data)
-      html += renderWeek(snap);
+      // 4. 7-Day Weekly Breakdown (Real Calendar Data - hidden if opted out in settings)
+      const hideCalendar = !!(state.hideWeekDays && state.hideWeekDays[card.id]);
+      if (!hideCalendar) {
+        html += renderWeek(snap);
+      }
 
       // 5. Footer: Real today left, overrun & refreshed time
       const todayLeftVal = snap.todayLeft != null ? snap.todayLeft : Math.max(0, 100 - (snap.weekly || 0)) / 7;

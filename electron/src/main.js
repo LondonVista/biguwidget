@@ -68,7 +68,7 @@ let currentCalendarServiceId = "agy";
 const undockedWins = new Map();
 
 function emptySnap(id) {
-  return { id, status: "loading", weekly: 0, five: null, reset: null, fiveReset: null, fetchedAt: 0, days: [], recentDeltas: [], todayLeft: null, todayUsed: 0 };
+  return { id, status: "loading", weekly: 0, five: null, reset: null, fiveReset: null, fetchedAt: 0, days: [], recentDeltas: [], todayLeft: null, todayOverrun: 0, futureDailyBudget: null, todayUsed: 0 };
 }
 
 function publicState() {
@@ -130,6 +130,7 @@ function applyResult(id, res) {
     recentDeltas: tracked.recentDeltas,
     todayLeft: tracked.todayLeft,
     todayOverrun: tracked.todayOverrun,
+    futureDailyBudget: tracked.futureDailyBudget,
     todayUsed: tracked.todayUsed,
   };
 }
@@ -750,6 +751,7 @@ app.whenReady().then(() => {
         const dailyStatus = tracker.calculateDailyStatus(snapshots[c.id].weekly || 0, todayUsed, snapshots[c.id].reset);
         snapshots[c.id].todayLeft = dailyStatus.todayLeft;
         snapshots[c.id].todayOverrun = dailyStatus.todayOverrun;
+        snapshots[c.id].futureDailyBudget = dailyStatus.futureDailyBudget;
         snapshots[c.id].todayUsed = todayUsed;
       }
     }

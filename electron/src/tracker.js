@@ -240,19 +240,29 @@ function calculateDailyStatus(totalPercent, todayUsed, resetsAt) {
     const budget = Math.min(remainingAtOpen, evenDailyShare);
     const left = Math.min(Math.max(0, budget - effectiveTodayUsed), poolRemainingNow);
     const overrun = Math.max(0, effectiveTodayUsed - budget);
-    return { todayLeft: left, todayOverrun: overrun };
+    const futureDailyBudget = Math.min(poolRemainingNow, evenDailyShare);
+    return { todayLeft: left, todayOverrun: overrun, futureDailyBudget };
   }
 
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   const reset = new Date(resetsAt);
+  const startOfResetDay = new Date(reset.getFullYear(), reset.getMonth(), reset.getDate());
+
   const secondsFromMorning = Math.max(0, (reset.getTime() - startOfToday.getTime()) / 1000);
   const daysFromMorning = Math.max(0.05, secondsFromMorning / 86400.0);
 
   const todayBudget = daysFromMorning <= 1.0 ? remainingAtOpen : remainingAtOpen / daysFromMorning;
   const todayLeft = Math.min(Math.max(0, todayBudget - effectiveTodayUsed), poolRemainingNow);
   const todayOverrun = Math.max(0, effectiveTodayUsed - todayBudget);
-  return { todayLeft, todayOverrun };
+
+  // Future calendar days count (from tomorrow to reset day inclusive)
+  const diffDays = Math.round((startOfResetDay.getTime() - startOfTomorrow.getTime()) / 86400000);
+  const futureCalendarDays = Math.max(1, diffDays + 1);
+  const futureDailyBudget = poolRemainingNow / futureCalendarDays;
+
+  return { todayLeft, todayOverrun, futureDailyBudget };
 }
 
 function processUsageUpdate(userDataPath, serviceId, res, prevSnap, centerToday = true) {
@@ -275,6 +285,7 @@ function processUsageUpdate(userDataPath, serviceId, res, prevSnap, centerToday 
     recentDeltas,
     todayLeft: dailyStatus.todayLeft,
     todayOverrun: dailyStatus.todayOverrun,
+    futureDailyBudget: dailyStatus.futureDailyBudget,
     todayUsed,
   };
 }

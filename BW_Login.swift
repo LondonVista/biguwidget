@@ -422,7 +422,11 @@ final class WidgetLayoutSettings: ObservableObject {
         }
 
         self.centerTodayInWeekStrip = UserDefaults.standard.bool(forKey: centerTodayKey)
-        self.showProjectedFutureDays = UserDefaults.standard.bool(forKey: projectedKey)
+        if UserDefaults.standard.object(forKey: projectedKey) == nil {
+            self.showProjectedFutureDays = true
+        } else {
+            self.showProjectedFutureDays = UserDefaults.standard.bool(forKey: projectedKey)
+        }
 
         if let saved = UserDefaults.standard.dictionary(forKey: scaleKey) {
             var out: [String: Double] = [:]

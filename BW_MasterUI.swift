@@ -352,7 +352,7 @@ struct WeekStripView: View {
     let todayKey: String
     let resetAt: Date?
     var projectedDailyBudget: Double? = nil
-    var showProjectedFutureDays: Bool = false
+    var showProjectedFutureDays: Bool = true
     var onOpenCalendar: (() -> Void)? = nil
 
     var body: some View {

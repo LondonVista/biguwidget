@@ -1,4 +1,4 @@
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.2.2", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0, centerTodayInWeekStrip: true, showProjectedFutureDays: true };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.2.3", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0, centerTodayInWeekStrip: true, showProjectedFutureDays: true };
 let isCheckingUpdates = false;
 let checkStatusMsg = "";
 let checkStatusTimer = null;
@@ -155,7 +155,7 @@ function renderSettings() {
         <button class="link no-drag" data-act="donate">Donate</button>
         <button class="link fb no-drag" data-act="feedback">Feedback</button>
       </div>
-      <span class="sver">v${state.version || "1.2.2"}</span>
+      <span class="sver">v${state.version || "1.2.3"}</span>
       <button class="done no-drag" data-act="close">Done</button>
     </div>
   `;

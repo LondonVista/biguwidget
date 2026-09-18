@@ -11,35 +11,62 @@ function cookieHeader(cookies) {
   return cookies.map((c) => `${c.name}=${c.value}`).join("; ");
 }
 
-async function cookiesFor(urls) {
+async function cookiesFor(domains) {
   const ses = session.fromPartition("persist:bigu");
-  const all = [];
-  for (const url of urls) {
-    const list = await ses.cookies.get({ url });
-    all.push(...list);
+  try {
+    const all = await ses.cookies.get({});
+    const normalizedDomains = domains.map((d) =>
+      d.replace(/^https?:\/\//, "").replace(/\/.*$/, "").toLowerCase()
+    );
+    const matched = all.filter((c) => {
+      const dom = (c.domain || "").toLowerCase().replace(/^\./, "");
+      return normalizedDomains.some((d) => dom === d || dom.endsWith("." + d) || d.endsWith("." + dom));
+    });
+    const byName = new Map();
+    for (const c of matched) byName.set(c.name, c);
+    return [...byName.values()];
+  } catch {
+    return [];
   }
-  const byName = new Map();
-  for (const c of all) byName.set(c.name, c);
-  return [...byName.values()];
 }
 
 function request(opts) {
   return new Promise((resolve) => {
-    const req = net.request(opts);
-    for (const [k, v] of Object.entries(opts.headers || {})) {
-      req.setHeader(k, v);
-    }
-    const chunks = [];
-    req.on("response", (res) => {
-      res.on("data", (c) => chunks.push(c));
-      res.on("end", () => {
-        const buf = Buffer.concat(chunks);
-        resolve({ status: res.statusCode || 0, buf });
+    const timeoutMs = opts.timeout || 12000;
+    let timer = null;
+    let resolved = false;
+
+    const safeResolve = (val) => {
+      if (resolved) return;
+      resolved = true;
+      if (timer) clearTimeout(timer);
+      resolve(val);
+    };
+
+    timer = setTimeout(() => {
+      safeResolve({ status: 0, buf: Buffer.alloc(0), error: "Timeout" });
+    }, timeoutMs);
+
+    try {
+      const req = net.request(opts);
+      for (const [k, v] of Object.entries(opts.headers || {})) {
+        req.setHeader(k, v);
+      }
+      const chunks = [];
+      req.on("response", (res) => {
+        res.on("data", (c) => chunks.push(c));
+        res.on("end", () => {
+          const buf = Buffer.concat(chunks);
+          safeResolve({ status: res.statusCode || 0, buf });
+        });
+        res.on("error", () => safeResolve({ status: 0, buf: Buffer.alloc(0) }));
       });
-    });
-    req.on("error", () => resolve({ status: 0, buf: Buffer.alloc(0) }));
-    if (opts.body) req.write(opts.body);
-    req.end();
+      req.on("error", () => safeResolve({ status: 0, buf: Buffer.alloc(0) }));
+      if (opts.body) req.write(opts.body);
+      req.end();
+    } catch {
+      safeResolve({ status: 0, buf: Buffer.alloc(0) });
+    }
   });
 }
 
@@ -280,24 +307,150 @@ async function fetchAGY(explicitToken) {
 function headlineFloats(buf) {
   const out = [];
   for (let i = 0; i + 5 <= buf.length; i++) {
-    if (buf[i] !== 0x15) continue;
-    const n = buf.readFloatLE(i + 1);
-    if (Number.isFinite(n) && n >= 0 && n <= 100) out.push(n);
+    // 0x0D: tag 1, float32 ((1<<3)|5)
+    // 0x15: tag 2, float32 ((2<<3)|5)
+    if (buf[i] === 0x0d || buf[i] === 0x15) {
+      const n = buf.readFloatLE(i + 1);
+      if (Number.isFinite(n) && n >= 0 && n <= 100) {
+        out.push(Math.round(n * 10) / 10);
+      }
+    }
   }
   return out;
 }
 
+function parseVarint(buf, offset) {
+  let result = 0;
+  let shift = 0;
+  let pos = offset;
+  while (pos < buf.length) {
+    const byte = buf[pos++];
+    result |= (byte & 0x7f) << shift;
+    if ((byte & 0x80) === 0) break;
+    shift += 7;
+  }
+  return { value: result, next: pos };
+}
+
+function parseProtoTimestamp(buf, offset, length) {
+  const end = offset + length;
+  let pos = offset;
+  let seconds = 0;
+  let nanos = 0;
+  while (pos < end) {
+    const tag = buf[pos++];
+    const field = tag >> 3;
+    const wire = tag & 0x07;
+    if (wire === 0) {
+      const decoded = parseVarint(buf, pos);
+      pos = decoded.next;
+      if (field === 1) seconds = decoded.value;
+      else if (field === 2) nanos = decoded.value;
+    } else {
+      break;
+    }
+  }
+  if (!seconds) return null;
+  return seconds * 1000 + Math.floor(nanos / 1000000);
+}
+
 function parseGrokBinary(buf) {
+  if (!buf || buf.length < 10) return null;
   const floats = headlineFloats(buf);
-  if (!floats.length) return null;
-  const ints = [...new Set(floats.map((f) => Math.round(f)))];
-  const usagePercent = ints.length ? ints[0] : floats[0];
-  return { usagePercent, periodEnd: null };
+  const productUsage = [];
+  let periodEnd = null;
+
+  const names = {
+    0: "3rd Party", 1: "API", 2: "Grok Build", 3: "Plugins",
+    4: "Chat", 5: "Imagine", 6: "Voice", 7: "App Builder"
+  };
+
+  for (let i = 0; i < buf.length - 7; i++) {
+    if (buf[i] === 0x3a && buf[i + 1] === 0x07 && buf[i + 2] === 0x08) {
+      const product = buf[i + 3];
+      if (buf[i + 4] === 0x15) {
+        const pct = Math.round(buf.readFloatLE(i + 5) * 10) / 10;
+        if (pct >= 0 && pct <= 100) {
+          productUsage.push({
+            product,
+            name: names[product] || `Product ${product}`,
+            usagePercent: pct,
+          });
+        }
+      }
+    }
+  }
+
+  for (let i = 0; i < buf.length - 4; i++) {
+    if (buf[i] === 0x42 && buf[i + 1] > 0 && buf[i + 1] < 40) {
+      const blockLen = buf[i + 1];
+      const blockStart = i + 2;
+      const blockEnd = blockStart + blockLen;
+      if (blockEnd <= buf.length) {
+        let pos = blockStart;
+        while (pos < blockEnd - 1) {
+          const tag = buf[pos++];
+          const field = tag >> 3;
+          const wire = tag & 0x07;
+          if (wire === 2) {
+            const len = buf[pos++];
+            if (field === 3 && !periodEnd) {
+              periodEnd = parseProtoTimestamp(buf, pos, len);
+            }
+            pos += len;
+          } else if (wire === 0) {
+            pos = parseVarint(buf, pos).next;
+          } else {
+            break;
+          }
+        }
+        if (periodEnd) break;
+      }
+    }
+  }
+
+  const productSum = productUsage.reduce((acc, p) => acc + (p.usagePercent || 0), 0);
+  const unique = [...new Set(floats.map((f) => Math.round(f)))];
+  let usagePercent = null;
+  if (unique.length === 1) {
+    usagePercent = unique[0];
+  } else if (productSum > 0 && unique.length) {
+    let best = unique[0];
+    let bestDist = Infinity;
+    for (const f of unique) {
+      for (const c of [f, 100 - f]) {
+        const dist = Math.abs(c - productSum);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = c;
+        }
+      }
+    }
+    usagePercent = best;
+  } else if (unique.length) {
+    usagePercent = unique[0];
+  }
+
+  if (usagePercent == null && productSum > 0) {
+    usagePercent = Math.min(100, productSum);
+  }
+
+  if (usagePercent == null && !productUsage.length && !periodEnd) {
+    return null;
+  }
+
+  return {
+    usagePercent: usagePercent ?? 0,
+    periodEnd: periodEnd || null,
+  };
 }
 
 async function fetchGrok() {
-  const cookies = await cookiesFor(["https://grok.com", "https://x.ai"]);
+  const cookies = await cookiesFor(["grok.com", "x.ai"]);
   if (!cookies.length) return { ok: false, needLogin: true };
+  const header = cookieHeader(cookies);
+
+  // 1. Primary: gRPC-web endpoint
   const { status, buf } = await request({
     method: "POST",
     url: "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig",
@@ -306,16 +459,43 @@ async function fetchGrok() {
       "connect-protocol-version": "1",
       "x-grpc-web": "1",
       Origin: "https://grok.com",
-      Cookie: cookieHeader(cookies),
+      Cookie: header,
       "User-Agent": UA,
     },
     body: Buffer.from([0, 0, 0, 0, 0]),
   });
+
   if (status === 401 || status === 403) return { ok: false, needLogin: true };
+  if (status === 200) {
+    const parsed = parseGrokBinary(buf);
+    if (parsed) {
+      return { ok: true, weekly: parsed.usagePercent, reset: parsed.periodEnd };
+    }
+  }
+
+  // 2. Fallback: REST rate-limits endpoint
+  const rest = await request({
+    method: "GET",
+    url: "https://grok.com/rest/rate-limits",
+    headers: {
+      Origin: "https://grok.com",
+      Cookie: header,
+      "User-Agent": UA,
+    },
+  });
+
+  if (rest.status === 200) {
+    try {
+      const json = JSON.parse(rest.buf.toString("utf8"));
+      if (json && typeof json.remainingQueries === "number" && typeof json.totalQueries === "number" && json.totalQueries > 0) {
+        const used = Math.round(((json.totalQueries - json.remainingQueries) / json.totalQueries) * 100);
+        return { ok: true, weekly: used, reset: null };
+      }
+    } catch {}
+  }
+
   if (status !== 200) return { ok: false, needLogin: status === 0 };
-  const parsed = parseGrokBinary(buf);
-  if (!parsed) return { ok: false, error: "Couldn't parse Grok usage" };
-  return { ok: true, weekly: parsed.usagePercent, reset: parsed.periodEnd };
+  return { ok: false, error: "Couldn't parse Grok usage" };
 }
 
 async function fetchGrokBot() {
@@ -404,4 +584,57 @@ async function fetchChatGPT() {
   };
 }
 
-module.exports = { fetchAGY, fetchGrok, fetchGrokBot, fetchChatGPT, detectAGYToken, cleanToken };
+async function fetchCursor() {
+  const cookies = await cookiesFor(["https://cursor.com", "https://www.cursor.com"]);
+  if (!cookies.length) return { ok: false, needLogin: true };
+  const header = cookieHeader(cookies);
+
+  const { status, buf } = await request({
+    method: "GET",
+    url: "https://www.cursor.com/api/usage",
+    headers: {
+      Accept: "application/json",
+      Origin: "https://www.cursor.com",
+      Referer: "https://www.cursor.com/settings",
+      Cookie: header,
+      "User-Agent": UA,
+    },
+  });
+
+  if (status === 401 || status === 403) return { ok: false, needLogin: true };
+  if (status !== 200) return { ok: false, needLogin: status === 0 };
+
+  let json;
+  try {
+    json = JSON.parse(buf.toString("utf8"));
+  } catch {
+    return { ok: false, error: "Couldn't parse Cursor usage" };
+  }
+
+  // Response: { "model-name": { numRequests, numRequestsTotal, maxRequestUsage }, ... }
+  // Premium ("fast") models have a maxRequestUsage or numRequestsTotal cap > 0.
+  let totalUsed = 0;
+  let totalMax = 0;
+
+  if (json && typeof json === "object" && !Array.isArray(json)) {
+    for (const data of Object.values(json)) {
+      if (!data || typeof data !== "object") continue;
+      const cap =
+        (typeof data.maxRequestUsage === "number" && data.maxRequestUsage > 0 ? data.maxRequestUsage : 0) ||
+        (typeof data.numRequestsTotal === "number" && data.numRequestsTotal > 0 ? data.numRequestsTotal : 0);
+      const used = typeof data.numRequests === "number" ? data.numRequests : 0;
+      if (cap > 0) {
+        totalUsed += used;
+        totalMax += cap;
+      }
+    }
+  }
+
+  if (totalMax === 0) return { ok: false, error: "No Cursor fast-request limits found" };
+
+  const weekly = Math.min(100, Math.round((totalUsed / totalMax) * 1000) / 10);
+  return { ok: true, weekly, reset: null, plan: "Cursor" };
+}
+
+module.exports = { fetchAGY, fetchGrok, fetchGrokBot, fetchCursor, fetchChatGPT, detectAGYToken, cleanToken };
+

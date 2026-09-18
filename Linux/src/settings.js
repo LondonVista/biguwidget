@@ -1,4 +1,4 @@
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.2.1", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0 };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.2.2", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0 };
 let isCheckingUpdates = false;
 let checkStatusMsg = "";
 let checkStatusTimer = null;
@@ -122,6 +122,21 @@ function renderSettings() {
     </div>
   `;
 
+  // Weekly 7-Day Strip Section
+  const centerToday = !!state.centerTodayInWeekStrip;
+  const showProjected = state.showProjectedFutureDays !== false;
+  html += `
+    <div class="shelp" style="margin-top: 12px; margin-bottom: 6px;">Weekly 7-Day Strip</div>
+    <div class="srow">
+      <span class="sname">Center Today (3 days past · Today · 3 days ahead)</span>
+      <button class="tog no-drag ${centerToday ? "on" : ""}" data-act="toggle-center-today">${centerToday ? "On" : "Off"}</button>
+    </div>
+    <div class="srow">
+      <span class="sname">Show Future Days Projected Budget (in Green)</span>
+      <button class="tog no-drag ${showProjected ? "on" : ""}" data-act="toggle-show-projected">${showProjected ? "On" : "Off"}</button>
+    </div>
+  `;
+
   const pol = state.updatePolicy || "prompt";
   html += `
     <div class="shelp" style="margin-top: 12px; margin-bottom: 6px;">Updates (GitHub)</div>
@@ -140,7 +155,7 @@ function renderSettings() {
         <button class="link no-drag" data-act="donate">Donate</button>
         <button class="link fb no-drag" data-act="feedback">Feedback</button>
       </div>
-      <span class="sver">v${state.version || "1.2.0"}</span>
+      <span class="sver">v${state.version || "1.2.2"}</span>
       <button class="done no-drag" data-act="close">Done</button>
     </div>
   `;
@@ -215,12 +230,28 @@ document.addEventListener("click", async (e) => {
     window.bigu.toggleUndock(id);
   }
   if (act === "toggle-cal" && id) {
-    const isCurrentlyHidden = !!(state.hideWeekDays && state.hideWeekDays[id]);
+    state.hideWeekDays = state.hideWeekDays || {};
+    const isCurrentlyHidden = !!state.hideWeekDays[id];
+    if (isCurrentlyHidden) delete state.hideWeekDays[id];
+    else state.hideWeekDays[id] = true;
+    renderSettings();
     window.bigu.setHideWeekDays(id, !isCurrentlyHidden);
   }
   if (act === "login" && id) {
     window.bigu.setEnabled(id, true);
     window.bigu.login(id);
+  }
+  if (act === "toggle-center-today") {
+    const nextVal = !state.centerTodayInWeekStrip;
+    state.centerTodayInWeekStrip = nextVal;
+    renderSettings();
+    window.bigu.setCenterTodayInWeekStrip(nextVal);
+  }
+  if (act === "toggle-show-projected") {
+    const nextVal = !(state.showProjectedFutureDays !== false);
+    state.showProjectedFutureDays = nextVal;
+    renderSettings();
+    window.bigu.setShowProjectedFutureDays(nextVal);
   }
   if (act === "zoom-step") {
     const step = parseFloat(t.getAttribute("data-step") || "0");

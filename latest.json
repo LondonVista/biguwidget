@@ -1,10 +1,10 @@
 {
-  "version": "1.2.1",
-  "notes": "BigUwidget 1.2.1: Standalone undocked floating cards support for all services, automatic omitting of floating cards from main stack, transparency slider, per-service 7-day calendar visibility toggle, Cursor fast requests tracking, and bug fixes.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.1",
+  "version": "1.2.2",
+  "notes": "BigUwidget 1.2.2: Future days projected daily budget, centered today 7-day strip, edge days fading, scoped reset badges, softened today highlight box, and full Big Usage Calendar popup with monthly/weekly sums.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.2",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.1/BigUwidget-1.2.1-Mac.zip",
-    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.1/BigUwidget-1.2.1-Linux.zip",
-    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.1/BigUwidget-1.2.1-Windows.zip"
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.2/BigUwidget-1.2.2-Mac.zip",
+    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.2/BigUwidget-1.2.2-Linux.zip",
+    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.2/BigUwidget-1.2.2-Windows.zip"
   }
 }

@@ -49,7 +49,7 @@ function loadState() {
   try {
     return JSON.parse(fs.readFileSync(statePath(), "utf8"));
   } catch {
-    return { enabled: DEFAULT_ENABLED, order: DEFAULT_ENABLED, undocked: [], undockedBounds: {}, snapshots: {}, bounds: null, updatePolicy: "prompt", agyToken: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {} };
+    return { enabled: DEFAULT_ENABLED, order: DEFAULT_ENABLED, undocked: [], undockedBounds: {}, snapshots: {}, bounds: null, updatePolicy: "prompt", agyToken: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {}, centerTodayInWeekStrip: false, showProjectedFutureDays: true };
   }
 }
 
@@ -63,6 +63,8 @@ let state = loadState();
 let widget = null;
 let loginWin = null;
 let settingsWin = null;
+let calendarWin = null;
+let currentCalendarServiceId = "agy";
 const undockedWins = new Map();
 
 function emptySnap(id) {
@@ -86,6 +88,8 @@ function publicState() {
     zoom: typeof state.zoom === "number" ? state.zoom : 1.0,
     opacity: typeof state.opacity === "number" ? state.opacity : 1.0,
     hideWeekDays: state.hideWeekDays && typeof state.hideWeekDays === "object" ? state.hideWeekDays : {},
+    centerTodayInWeekStrip: !!state.centerTodayInWeekStrip,
+    showProjectedFutureDays: state.showProjectedFutureDays !== false,
   };
 }
 
@@ -93,6 +97,7 @@ function broadcast() {
   const pub = publicState();
   if (widget && !widget.isDestroyed()) widget.webContents.send("state", pub);
   if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send("state", pub);
+  if (calendarWin && !calendarWin.isDestroyed()) calendarWin.webContents.send("state", pub);
   for (const win of undockedWins.values()) {
     if (win && !win.isDestroyed()) {
       win.webContents.send("state", pub);
@@ -110,7 +115,7 @@ function applyResult(id, res) {
     return;
   }
   const prevSnap = state.snapshots[id];
-  const tracked = tracker.processUsageUpdate(app.getPath("userData"), id, res, prevSnap);
+  const tracked = tracker.processUsageUpdate(app.getPath("userData"), id, res, prevSnap, state.centerTodayInWeekStrip);
 
   state.snapshots[id] = {
     id,
@@ -497,6 +502,81 @@ function closeSettingsWindow() {
   }
 }
 
+function openCalendarWindow(id) {
+  if (id) currentCalendarServiceId = id;
+  if (calendarWin && !calendarWin.isDestroyed()) {
+    calendarWin.loadFile(path.join(__dirname, "calendar.html"), { query: { service: currentCalendarServiceId } });
+    calendarWin.show();
+    calendarWin.focus();
+    return;
+  }
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+  const winWidth = 460;
+  const winHeight = 660;
+  const x = Math.round((screenWidth - winWidth) / 2);
+  const y = Math.round((screenHeight - winHeight) / 2);
+
+  calendarWin = new BrowserWindow({
+    width: winWidth,
+    height: winHeight,
+    x: x,
+    y: y,
+    minWidth: 380,
+    minHeight: 440,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: true,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: false,
+    show: false,
+    backgroundColor: "#00000000",
+    title: "BigUwidget - Usage Calendar",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      partition: "persist:bigu",
+      spellcheck: false,
+      devTools: false,
+    },
+  });
+
+  if (process.platform === "darwin") {
+    calendarWin.setAlwaysOnTop(true, "floating");
+  } else {
+    calendarWin.setAlwaysOnTop(true);
+  }
+
+  calendarWin.loadFile(path.join(__dirname, "calendar.html"), { query: { service: currentCalendarServiceId } });
+
+  calendarWin.once("ready-to-show", () => {
+    if (calendarWin && !calendarWin.isDestroyed()) {
+      calendarWin.show();
+      calendarWin.focus();
+    }
+  });
+  setTimeout(() => {
+    if (calendarWin && !calendarWin.isDestroyed() && !calendarWin.isVisible()) {
+      calendarWin.show();
+      calendarWin.focus();
+    }
+  }, 200);
+
+  calendarWin.on("closed", () => {
+    calendarWin = null;
+  });
+}
+
+function closeCalendarWindow() {
+  if (calendarWin && !calendarWin.isDestroyed()) {
+    calendarWin.close();
+    calendarWin = null;
+  }
+}
+
 function createUndockedWindow(id) {
   if (undockedWins.has(id)) {
     const existing = undockedWins.get(id);
@@ -661,7 +741,7 @@ app.whenReady().then(() => {
       if (deltas && deltas.length) {
         snapshots[c.id].recentDeltas = deltas;
       }
-      const days = tracker.getDaysForDisplay(dir, snapshots[c.id].weekly || 0, snapshots[c.id].reset);
+      const days = tracker.getDaysForDisplay(dir, snapshots[c.id].weekly || 0, snapshots[c.id].reset, loaded.centerTodayInWeekStrip);
       if (days && days.length) {
         snapshots[c.id].days = days;
         const todayDay = days.find((d) => d.isToday);
@@ -685,6 +765,8 @@ app.whenReady().then(() => {
     zoom: typeof loaded.zoom === "number" ? loaded.zoom : 1.0,
     opacity: typeof loaded.opacity === "number" ? loaded.opacity : 1.0,
     hideWeekDays: loaded.hideWeekDays && typeof loaded.hideWeekDays === "object" ? loaded.hideWeekDays : {},
+    centerTodayInWeekStrip: typeof loaded.centerTodayInWeekStrip === "boolean" ? loaded.centerTodayInWeekStrip : false,
+    showProjectedFutureDays: typeof loaded.showProjectedFutureDays === "boolean" ? loaded.showProjectedFutureDays : true,
     update: null,
   };
   createWidget();
@@ -771,6 +853,28 @@ ipcMain.handle("set-hide-week-days", (_e, id, hide) => {
   broadcast();
   return publicState();
 });
+ipcMain.handle("set-center-today-in-week-strip", (_e, enabled) => {
+  state.centerTodayInWeekStrip = !!enabled;
+  const userData = app.getPath("userData");
+  for (const c of CARDS) {
+    if (state.snapshots[c.id]) {
+      const dir = tracker.getServiceDir(userData, c.id);
+      const days = tracker.getDaysForDisplay(dir, state.snapshots[c.id].weekly || 0, state.snapshots[c.id].reset, state.centerTodayInWeekStrip);
+      if (days && days.length) {
+        state.snapshots[c.id].days = days;
+      }
+    }
+  }
+  saveState();
+  broadcast();
+  return publicState();
+});
+ipcMain.handle("set-show-projected-future-days", (_e, enabled) => {
+  state.showProjectedFutureDays = !!enabled;
+  saveState();
+  broadcast();
+  return publicState();
+});
 ipcMain.handle("toggle-undock", (_e, id) => {
   const undocked = Array.isArray(state.undocked) ? [...state.undocked] : [];
   const idx = undocked.indexOf(id);
@@ -811,6 +915,25 @@ ipcMain.handle("open-settings-window", () => {
 ipcMain.handle("close-settings-window", () => {
   closeSettingsWindow();
   return true;
+});
+ipcMain.handle("open-calendar", (_e, id) => {
+  openCalendarWindow(id);
+  return true;
+});
+ipcMain.handle("close-calendar", () => {
+  closeCalendarWindow();
+  return true;
+});
+ipcMain.handle("get-calendar-data", (_e, id, targetYear) => {
+  const serviceId = id || currentCalendarServiceId || "agy";
+  const snap = state.snapshots[serviceId] || {};
+  return tracker.getCalendarData(
+    app.getPath("userData"),
+    serviceId,
+    targetYear,
+    snap.reset,
+    snap.weekly || 0
+  );
 });
 ipcMain.handle("quit", () => app.quit());
 ipcMain.handle("set-update-policy", (_e, policy) => {

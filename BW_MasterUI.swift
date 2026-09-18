@@ -866,7 +866,7 @@ struct ServiceCardView: View {
                                 days: weekDays,
                                 todayKey: todayKey,
                                 resetAt: snap.resetsAt,
-                                projectedDailyBudget: status.todayLeft,
+                                projectedDailyBudget: status.futureDailyBudget,
                                 showProjectedFutureDays: settings.showProjectedFutureDays,
                                 onOpenCalendar: onOpenCalendar
                             )

@@ -1,10 +1,10 @@
 {
-  "version": "1.2.2",
-  "notes": "BigUwidget 1.2.2: Future days projected daily budget, centered today 7-day strip, edge days fading, scoped reset badges, softened today highlight box, and full Big Usage Calendar popup with monthly/weekly sums across Mac, Linux, and Windows.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.2",
+  "version": "1.2.3",
+  "notes": "BigUwidget 1.2.3: Accurate future days projected daily budget calculation dividing remaining quota pool across upcoming days.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.3",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.2/BigUwidget-1.2.2-Mac.zip",
-    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.2/BigUwidget-1.2.2-Linux.zip",
-    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.2/BigUwidget-1.2.2-Windows.zip"
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.3/BigUwidget-1.2.3-Mac.zip",
+    "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.3/BigUwidget-1.2.3-Linux.zip",
+    "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.3/BigUwidget-1.2.3-Windows.zip"
   }
 }

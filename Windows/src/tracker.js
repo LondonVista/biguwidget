@@ -7,10 +7,18 @@ function getServiceDir(userDataPath, serviceId) {
   return dir;
 }
 
-function isResetWeekday(key, resetDate) {
+function isResetWeekday(keyOrDate, resetDate) {
   if (!resetDate) return false;
   try {
-    const d = new Date(key + "T12:00:00Z");
+    let d;
+    if (typeof keyOrDate === "string") {
+      d = new Date(keyOrDate + "T12:00:00Z");
+    } else if (keyOrDate instanceof Date) {
+      const key = keyOrDate.toISOString().slice(0, 10);
+      d = new Date(key + "T12:00:00Z");
+    } else {
+      return false;
+    }
     const r = new Date(resetDate);
     return d.getUTCDay() === r.getUTCDay();
   } catch {
@@ -140,39 +148,73 @@ function usedPercent(key, map, currentTotal, isToday, resetsAt) {
   return Math.max(0, close - effectiveOpen);
 }
 
-function getDaysForDisplay(dir, currentTotal, resetsAt) {
+function localDateKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function getDaysForDisplay(dir, currentTotal, resetsAt, centerToday = false) {
   const dailyPath = path.join(dir, "daily-usage.json");
   const map = loadJson(dailyPath, {}) || {};
 
-  const now = new Date();
-  const dayOfWeek = (now.getDay() + 6) % 7; // Monday = 0, Sunday = 6
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - dayOfWeek);
-  monday.setHours(0, 0, 0, 0);
+  const cal = new Date();
+  const today = new Date(cal.getFullYear(), cal.getMonth(), cal.getDate());
+  const todayKey = localDateKey(today);
+  const out = [];
 
-  const labels = ["M", "T", "W", "T", "F", "S", "S"];
-  const days = [];
-  const todayKey = now.toISOString().slice(0, 10);
+  if (centerToday) {
+    // 3 days past, Today in middle (index 3), 3 days future
+    const dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
+    for (let offset = -3; offset <= 3; offset++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + offset);
+      const key = localDateKey(d);
+      const isToday = offset === 0;
+      const isFuture = offset > 0;
+      const percent = usedPercent(key, map, currentTotal, isToday, resetsAt);
+      const gain = effectiveAccumulated(key, map, resetsAt);
+      const isReset = isResetWeekday(d, resetsAt ? new Date(resetsAt) : null);
 
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    const key = d.toISOString().slice(0, 10);
-    const isToday = key === todayKey;
-    const percent = usedPercent(key, map, currentTotal, isToday, resetsAt);
-    const gain = effectiveAccumulated(key, map, resetsAt);
-    const isReset = isResetWeekday(key, resetsAt ? new Date(resetsAt) : null);
+      out.push({
+        key,
+        label: dayLabels[d.getDay()],
+        percent: Math.round(percent * 10) / 10,
+        accumulatedGain: gain,
+        isToday,
+        isFuture,
+        isReset,
+      });
+    }
+  } else {
+    // Standard Monday-Sunday strip
+    const mondayOffset = (today.getDay() + 6) % 7; // Monday = 0, Sunday = 6
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - mondayOffset);
+    const labels = ["M", "T", "W", "T", "F", "S", "S"];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const key = localDateKey(d);
+      const isToday = key === todayKey;
+      const isFuture = d > today;
+      const percent = usedPercent(key, map, currentTotal, isToday, resetsAt);
+      const gain = effectiveAccumulated(key, map, resetsAt);
+      const isReset = isResetWeekday(d, resetsAt ? new Date(resetsAt) : null);
 
-    days.push({
-      key,
-      label: labels[i],
-      percent: Math.round(percent * 10) / 10,
-      accumulatedGain: gain,
-      isToday,
-      isReset,
-    });
+      out.push({
+        key,
+        label: labels[i],
+        percent: Math.round(percent * 10) / 10,
+        accumulatedGain: gain,
+        isToday,
+        isFuture,
+        isReset,
+      });
+    }
   }
-  return days;
+  return out;
 }
 
 function getRecentDeltas(dir) {
@@ -213,7 +255,7 @@ function calculateDailyStatus(totalPercent, todayUsed, resetsAt) {
   return { todayLeft, todayOverrun };
 }
 
-function processUsageUpdate(userDataPath, serviceId, res, prevSnap) {
+function processUsageUpdate(userDataPath, serviceId, res, prevSnap, centerToday = false) {
   const dir = getServiceDir(userDataPath, serviceId);
   const nowTs = Date.now() / 1000;
   const totalPercent = res.weekly ?? 0;
@@ -222,7 +264,7 @@ function processUsageUpdate(userDataPath, serviceId, res, prevSnap) {
   appendPositiveDelta(dir, prevTotal, totalPercent, res.five, nowTs);
   updateDailyUsage(dir, totalPercent, nowTs, res.reset);
 
-  const days = getDaysForDisplay(dir, totalPercent, res.reset);
+  const days = getDaysForDisplay(dir, totalPercent, res.reset, centerToday);
   const recentDeltas = getRecentDeltas(dir);
   const todayDay = days.find((d) => d.isToday);
   const todayUsed = todayDay ? todayDay.percent : 0;
@@ -237,10 +279,89 @@ function processUsageUpdate(userDataPath, serviceId, res, prevSnap) {
   };
 }
 
+function getCalendarData(userDataPath, serviceId, targetYear, resetsAt, currentTotal) {
+  const dir = getServiceDir(userDataPath, serviceId);
+  const dailyPath = path.join(dir, "daily-usage.json");
+  const map = loadJson(dailyPath, {}) || {};
+
+  const year = targetYear || (new Date()).getFullYear();
+  const now = new Date();
+  const todayKey = localDateKey(now);
+  const resetDate = resetsAt ? new Date(resetsAt) : null;
+
+  const months = [];
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  for (let m = 0; m < 12; m++) {
+    const start = new Date(year, m, 1);
+    const daysInMonth = new Date(year, m + 1, 0).getDate();
+    const weekday = (start.getDay() + 6) % 7; // Monday = 0
+    const totalCells = weekday + daysInMonth;
+    const numRows = Math.ceil(totalCells / 7);
+
+    const rows = [];
+    let monthTotal = 0;
+
+    for (let r = 0; r < numRows; r++) {
+      const cells = [];
+      let rowSum = 0;
+      for (let c = 0; c < 7; c++) {
+        const cellIdx = r * 7 + c;
+        const dayNum = cellIdx - weekday + 1;
+        if (dayNum >= 1 && dayNum <= daysInMonth) {
+          const d = new Date(year, m, dayNum);
+          const key = localDateKey(d);
+          const isToday = key === todayKey;
+          const isFuture = d > now && !isToday;
+          const isReset = isResetWeekday(key, resetDate);
+          const used = usedPercent(key, map, currentTotal, isToday, resetsAt);
+          const val = Math.round(used * 10) / 10;
+          rowSum += val;
+          monthTotal += val;
+
+          cells.push({
+            dayNum,
+            key,
+            isToday,
+            isFuture,
+            isReset,
+            used: val,
+            hasData: !!map[key] || isToday,
+          });
+        } else {
+          cells.push(null);
+        }
+      }
+      rows.push({
+        cells,
+        rowSum: Math.round(rowSum * 10) / 10,
+      });
+    }
+
+    months.push({
+      monthNum: m + 1,
+      name: monthNames[m],
+      rows,
+      monthTotal: Math.round(monthTotal * 10) / 10,
+    });
+  }
+
+  return {
+    year,
+    serviceId,
+    months,
+  };
+}
+
 module.exports = {
   processUsageUpdate,
   getDaysForDisplay,
   getRecentDeltas,
   calculateDailyStatus,
   getServiceDir,
+  getCalendarData,
+  localDateKey,
 };

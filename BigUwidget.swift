@@ -7,8 +7,8 @@ import WebKit
 enum BigUwidgetConfig {
     /// Ko-fi / GitHub Sponsors / PayPal. Donate is hidden if this is nil.
     static let donateURL = URL(string: "https://ko-fi.com/london_vista")
-    static let feedbackURL = URL(string: "https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v1.2.1&body=%2A%2AOS%2A%2A%3A+macOS%0A%2A%2AVersion%2A%2A%3A+v1.2.1%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A")
-    static let appVersion = "1.2.1"
+    static let feedbackURL = URL(string: "https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v1.2.3&body=%2A%2AOS%2A%2A%3A+macOS%0A%2A%2AVersion%2A%2A%3A+v1.2.3%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A")
+    static let appVersion = "1.2.3"
     static let updateFeedURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest/download/latest.json")
     static let githubReleasesURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest")
     static let githubAPIURL = URL(string: "https://api.github.com/repos/LondonVista/biguwidget/releases/latest")
@@ -483,6 +483,7 @@ enum UsageParser {
         let todayLeft: Double
         let paceOverrun: Double
         let todayOverrun: Double
+        let futureDailyBudget: Double
     }
 
     static func calculateDailyStatus(
@@ -500,7 +501,8 @@ enum UsageParser {
             let budget = min(remainingAtOpen, evenDailyShare)
             let left = min(max(0, budget - effectiveTodayUsed), poolRemainingNow)
             let overrun = max(0, effectiveTodayUsed - budget)
-            return DailyBudgetStatus(todayLeft: left, paceOverrun: 0, todayOverrun: overrun)
+            let futureBudget = min(poolRemainingNow, evenDailyShare)
+            return DailyBudgetStatus(todayLeft: left, paceOverrun: 0, todayOverrun: overrun, futureDailyBudget: futureBudget)
         }
 
         let startOfToday = Calendar.current.startOfDay(for: now)
@@ -523,10 +525,23 @@ enum UsageParser {
         let expectedRemaining = fractionRemaining * 100.0
         let paceOverrun = max(0, expectedRemaining - poolRemainingNow)
 
+        // Calculate future daily budget: pool remaining now divided by future calendar days left until reset
+        let futureDailyBudget: Double = {
+            let cal = Calendar.current
+            guard let startOfTomorrow = cal.date(byAdding: .day, value: 1, to: startOfToday) else {
+                return todayBudget
+            }
+            let startOfResetDay = cal.startOfDay(for: reset)
+            let dayDiff = cal.dateComponents([.day], from: startOfTomorrow, to: startOfResetDay).day ?? 0
+            let futureCalendarDays = max(1, dayDiff + 1)
+            return poolRemainingNow / Double(futureCalendarDays)
+        }()
+
         return DailyBudgetStatus(
             todayLeft: todayLeft,
             paceOverrun: paceOverrun,
-            todayOverrun: todayOverrun
+            todayOverrun: todayOverrun,
+            futureDailyBudget: futureDailyBudget
         )
     }
 

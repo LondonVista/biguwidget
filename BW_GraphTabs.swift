@@ -1284,7 +1284,7 @@ extension YearCalendarView {
                                     if let r = resetAt { return date <= r }
                                     return true
                                 }()
-                                let projected = (isWithinCycle && isFuture) ? status?.todayLeft : nil
+                                let projected = (isWithinCycle && isFuture) ? status?.futureDailyBudget : nil
 
                                 dayCell(
                                     dayNum: dayNum,

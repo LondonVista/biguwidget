@@ -155,7 +155,7 @@ function localDateKey(d) {
   return `${y}-${m}-${day}`;
 }
 
-function getDaysForDisplay(dir, currentTotal, resetsAt, centerToday = false) {
+function getDaysForDisplay(dir, currentTotal, resetsAt, centerToday = true) {
   const dailyPath = path.join(dir, "daily-usage.json");
   const map = loadJson(dailyPath, {}) || {};
 
@@ -255,7 +255,7 @@ function calculateDailyStatus(totalPercent, todayUsed, resetsAt) {
   return { todayLeft, todayOverrun };
 }
 
-function processUsageUpdate(userDataPath, serviceId, res, prevSnap, centerToday = false) {
+function processUsageUpdate(userDataPath, serviceId, res, prevSnap, centerToday = true) {
   const dir = getServiceDir(userDataPath, serviceId);
   const nowTs = Date.now() / 1000;
   const totalPercent = res.weekly ?? 0;

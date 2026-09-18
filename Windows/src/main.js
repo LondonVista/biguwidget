@@ -49,7 +49,7 @@ function loadState() {
   try {
     return JSON.parse(fs.readFileSync(statePath(), "utf8"));
   } catch {
-    return { enabled: DEFAULT_ENABLED, order: DEFAULT_ENABLED, undocked: [], undockedBounds: {}, snapshots: {}, bounds: null, updatePolicy: "prompt", agyToken: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {}, centerTodayInWeekStrip: false, showProjectedFutureDays: true };
+    return { enabled: DEFAULT_ENABLED, order: DEFAULT_ENABLED, undocked: [], undockedBounds: {}, snapshots: {}, bounds: null, updatePolicy: "prompt", agyToken: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {}, centerTodayInWeekStrip: true, showProjectedFutureDays: true };
   }
 }
 
@@ -88,7 +88,7 @@ function publicState() {
     zoom: typeof state.zoom === "number" ? state.zoom : 1.0,
     opacity: typeof state.opacity === "number" ? state.opacity : 1.0,
     hideWeekDays: state.hideWeekDays && typeof state.hideWeekDays === "object" ? state.hideWeekDays : {},
-    centerTodayInWeekStrip: !!state.centerTodayInWeekStrip,
+    centerTodayInWeekStrip: state.centerTodayInWeekStrip !== false,
     showProjectedFutureDays: state.showProjectedFutureDays !== false,
   };
 }
@@ -741,7 +741,8 @@ app.whenReady().then(() => {
       if (deltas && deltas.length) {
         snapshots[c.id].recentDeltas = deltas;
       }
-      const days = tracker.getDaysForDisplay(dir, snapshots[c.id].weekly || 0, snapshots[c.id].reset, loaded.centerTodayInWeekStrip);
+      const centerToday = loaded.centerTodayInWeekStrip !== false;
+      const days = tracker.getDaysForDisplay(dir, snapshots[c.id].weekly || 0, snapshots[c.id].reset, centerToday);
       if (days && days.length) {
         snapshots[c.id].days = days;
         const todayDay = days.find((d) => d.isToday);
@@ -765,8 +766,8 @@ app.whenReady().then(() => {
     zoom: typeof loaded.zoom === "number" ? loaded.zoom : 1.0,
     opacity: typeof loaded.opacity === "number" ? loaded.opacity : 1.0,
     hideWeekDays: loaded.hideWeekDays && typeof loaded.hideWeekDays === "object" ? loaded.hideWeekDays : {},
-    centerTodayInWeekStrip: typeof loaded.centerTodayInWeekStrip === "boolean" ? loaded.centerTodayInWeekStrip : false,
-    showProjectedFutureDays: typeof loaded.showProjectedFutureDays === "boolean" ? loaded.showProjectedFutureDays : true,
+    centerTodayInWeekStrip: loaded.centerTodayInWeekStrip !== false,
+    showProjectedFutureDays: loaded.showProjectedFutureDays !== false,
     update: null,
   };
   createWidget();

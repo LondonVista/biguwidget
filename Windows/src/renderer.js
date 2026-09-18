@@ -80,7 +80,7 @@ function fmtPct(n) {
   return r === Math.round(r) ? String(Math.round(r)) : r.toFixed(1);
 }
 
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.2.2", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {}, centerTodayInWeekStrip: false, showProjectedFutureDays: true };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.2.3", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {}, centerTodayInWeekStrip: false, showProjectedFutureDays: true };
 const collapsed = new Set();
 
 function orderedCards() {
@@ -155,9 +155,9 @@ function renderWeek(snap, cardId) {
     return fallback;
   }
 
-  const todayLeftVal = typeof snap.todayLeft === "number" ? snap.todayLeft : 0;
-  const showProjected = (state.showProjectedFutureDays !== false) && (todayLeftVal > 0);
-  const projPct = Math.round(todayLeftVal);
+  const futureBudgetVal = typeof snap.futureDailyBudget === "number" ? snap.futureDailyBudget : (typeof snap.todayLeft === "number" ? snap.todayLeft : 0);
+  const showProjected = (state.showProjectedFutureDays !== false) && (futureBudgetVal > 0);
+  const projPct = Math.round(futureBudgetVal);
 
   let html = `<div class="week-row no-drag" data-act="open-calendar" data-id="${cid}" title="Click to view usage calendar" style="cursor: pointer;">`;
   for (let idx = 0; idx < days.length; idx++) {

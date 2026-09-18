@@ -9,9 +9,14 @@ cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
 if [[ -f "$ROOT/AppIcon.icns" ]]; then
   cp "$ROOT/AppIcon.icns" "$RES/AppIcon.icns"
 fi
-swiftc -O -parse-as-library -o "$BIN/BigUwidget" "$ROOT/BigUwidget.swift" \
+SDK_FLAG=()
+if [[ -d "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk" ]]; then
+  SDK_FLAG=(-sdk "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk")
+fi
+swiftc -Onone -j8 -parse-as-library -o "$BIN/BigUwidget" \
+  "$ROOT/BigUwidget.swift" "$ROOT"/BW_*.swift \
   -framework Cocoa -framework SwiftUI -framework WebKit \
-  -target arm64-apple-macos13
+  -target arm64-apple-macos13 "${SDK_FLAG[@]}"
 chmod +x "$BIN/BigUwidget"
 if [[ -n "${SIGN_IDENTITY:-}" ]]; then
   codesign --force --deep --options runtime --sign "$SIGN_IDENTITY" "$APP"

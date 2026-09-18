@@ -80,7 +80,7 @@ function fmtPct(n) {
   return r === Math.round(r) ? String(Math.round(r)) : r.toFixed(1);
 }
 
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.2.1", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {} };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.2.2", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {}, centerTodayInWeekStrip: false, showProjectedFutureDays: true };
 const collapsed = new Set();
 
 function orderedCards() {
@@ -132,17 +132,22 @@ function renderDeltas(snap, cardId) {
   }).join("");
 }
 
-function renderWeek(snap) {
+function renderWeek(snap, cardId) {
+  const cid = cardId || (snap && snap.id) || "";
   const days = Array.isArray(snap.days) && snap.days.length ? snap.days : [];
   if (!days.length) {
     const labels = ["M", "T", "W", "T", "F", "S", "S"];
     const now = new Date();
     const todayIdx = (now.getDay() + 6) % 7;
-    let fallback = `<div class="week-row">`;
+    let fallback = `<div class="week-row no-drag" data-act="open-calendar" data-id="${cid}" title="Click to view usage calendar" style="cursor: pointer;">`;
     for (let i = 0; i < 7; i++) {
       const isToday = i === todayIdx;
-      fallback += `<div class="day-col ${isToday ? "today-day" : ""}">
-        ${isToday ? `<div class="day-caret">▲</div><div class="day-lbl"><span class="day-dot">•</span>${labels[i]}</div>` : `<div class="day-lbl">${labels[i]}</div>`}
+      const isEdge = (i === 0 || i === 6);
+      const isSubEdge = (i === 1 || i === 5);
+      const fade = isEdge ? 0.58 : (isSubEdge ? 0.85 : 1.0);
+      const opacity = isToday ? 1.0 : fade;
+      fallback += `<div class="day-col ${isToday ? "today-day" : ""}" style="opacity: ${opacity}" data-act="open-calendar" data-id="${cid}">
+        ${isToday ? `<div class="day-dot">•</div><div class="day-lbl">${labels[i]}</div>` : `<div class="day-lbl">${labels[i]}</div>`}
         <div class="day-pct">0%</div>
       </div>`;
     }
@@ -150,29 +155,44 @@ function renderWeek(snap) {
     return fallback;
   }
 
-  let html = `<div class="week-row">`;
-  for (const day of days) {
+  const todayLeftVal = typeof snap.todayLeft === "number" ? snap.todayLeft : 0;
+  const showProjected = (state.showProjectedFutureDays !== false) && (todayLeftVal > 0);
+  const projPct = Math.round(todayLeftVal);
+
+  let html = `<div class="week-row no-drag" data-act="open-calendar" data-id="${cid}" title="Click to view usage calendar" style="cursor: pointer;">`;
+  for (let idx = 0; idx < days.length; idx++) {
+    const day = days[idx];
     const isToday = !!day.isToday;
     const isReset = !!day.isReset && !isToday;
+    const isFuture = !!day.isFuture;
     const hasBonus = (day.accumulatedGain || 0) >= 0.5;
     const gainInt = Math.round(day.accumulatedGain || 0);
+
+    const isEdge = (idx === 0 || idx === 6);
+    const isSubEdge = (idx === 1 || idx === 5);
+    const fade = isEdge ? 0.58 : (isSubEdge ? 0.85 : 1.0);
+    const opacity = (isToday || day.isReset) ? 1.0 : fade;
+
+    const isProjectedDay = showProjected && isFuture;
+    const displayPercent = isProjectedDay ? `${projPct}%` : `${Math.round(day.percent || 0)}%`;
+    const tooltip = isProjectedDay ? `title="Projected daily budget: ${displayPercent}"` : "";
 
     let cls = "day-col";
     if (isToday) cls += " today-day";
     else if (isReset) cls += " target-day";
+    if (isProjectedDay) cls += " projected-day";
 
-    html += `<div class="${cls}">`;
+    html += `<div class="${cls}" style="opacity: ${opacity}" data-act="open-calendar" data-id="${cid}" ${tooltip}>`;
     if (hasBonus) {
       html += `<div class="day-bonus">+${gainInt}</div>`;
-      html += `<div class="day-lbl">${day.label}</div>`;
+      html += `<div class="day-lbl ${day.isReset ? 'reset-badge' : ''}">${day.label}</div>`;
     } else if (isToday) {
       html += `<div class="day-dot">•</div>`;
-      html += `<div class="day-lbl">${day.label}</div>`;
+      html += `<div class="day-lbl ${day.isReset ? 'reset-badge' : ''}">${day.label}</div>`;
     } else {
-      html += `<div class="day-lbl">${day.label}</div>`;
+      html += `<div class="day-lbl ${day.isReset ? 'reset-badge' : ''}">${day.label}</div>`;
     }
-    const val = Math.round(day.percent || 0);
-    html += `<div class="day-pct">${val}%</div>`;
+    html += `<div class="day-pct">${displayPercent}</div>`;
     html += `</div>`;
   }
   html += `</div>`;
@@ -278,7 +298,7 @@ function render() {
       // 4. 7-Day Weekly Breakdown
       const hideCalendar = !!(state.hideWeekDays && state.hideWeekDays[card.id]);
       if (!hideCalendar) {
-        html += renderWeek(snap);
+        html += renderWeek(snap, card.id);
       }
 
       // 5. Footer: Real today left, overrun & refreshed time
@@ -438,7 +458,7 @@ function render() {
       // 4. 7-Day Weekly Breakdown (Real Calendar Data - hidden if opted out in settings)
       const hideCalendar = !!(state.hideWeekDays && state.hideWeekDays[card.id]);
       if (!hideCalendar) {
-        html += renderWeek(snap);
+        html += renderWeek(snap, card.id);
       }
 
       // 5. Footer: Real today left, overrun & refreshed time
@@ -490,6 +510,9 @@ document.addEventListener("click", async (e) => {
   if (act === "quit") window.bigu.quit();
   if (act === "minimize") window.bigu.minimize();
   if (act === "settings") window.bigu.openSettingsWindow();
+  if (act === "open-calendar") {
+    window.bigu.openCalendar(id || "agy");
+  }
   if (act === "undock-toggle" && id) {
     window.bigu.toggleUndock(id);
   }

@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer, webFrame } = require("electron");
 
 contextBridge.exposeInMainWorld("bigu", {
-  version: "1.2.1",
+  version: "1.2.2",
   fetchAll: () => ipcRenderer.invoke("fetch-all"),
   fetchOne: (id) => ipcRenderer.invoke("fetch-one", id),
   login: (id) => ipcRenderer.invoke("login", id),
@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld("bigu", {
   setZoom: (zoom) => ipcRenderer.invoke("set-zoom", zoom),
   setOpacity: (opacity) => ipcRenderer.invoke("set-opacity", opacity),
   setHideWeekDays: (id, hide) => ipcRenderer.invoke("set-hide-week-days", id, hide),
+  setCenterTodayInWeekStrip: (enabled) => ipcRenderer.invoke("set-center-today-in-week-strip", enabled),
+  setShowProjectedFutureDays: (enabled) => ipcRenderer.invoke("set-show-projected-future-days", enabled),
   toggleUndock: (id) => ipcRenderer.invoke("toggle-undock", id),
   setUndocked: (id, undocked) => ipcRenderer.invoke("set-undocked", id, undocked),
   setZoomFactor: (factor) => {
@@ -25,6 +27,9 @@ contextBridge.exposeInMainWorld("bigu", {
   minimize: () => ipcRenderer.invoke("minimize"),
   openSettingsWindow: () => ipcRenderer.invoke("open-settings-window"),
   closeSettingsWindow: () => ipcRenderer.invoke("close-settings-window"),
+  openCalendar: (id) => ipcRenderer.invoke("open-calendar", id),
+  closeCalendar: () => ipcRenderer.invoke("close-calendar"),
+  getCalendarData: (id, year) => ipcRenderer.invoke("get-calendar-data", id, year),
   quit: () => ipcRenderer.invoke("quit"),
   setUpdatePolicy: (policy) => ipcRenderer.invoke("set-update-policy", policy),
   installUpdate: () => ipcRenderer.invoke("install-update"),

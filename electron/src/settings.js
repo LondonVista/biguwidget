@@ -1,4 +1,4 @@
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.2.2", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0 };
+let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.2.2", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0, centerTodayInWeekStrip: true, showProjectedFutureDays: true };
 let isCheckingUpdates = false;
 let checkStatusMsg = "";
 let checkStatusTimer = null;
@@ -123,7 +123,7 @@ function renderSettings() {
   `;
 
   // Weekly 7-Day Strip Section
-  const centerToday = !!state.centerTodayInWeekStrip;
+  const centerToday = state.centerTodayInWeekStrip !== false;
   const showProjected = state.showProjectedFutureDays !== false;
   html += `
     <div class="shelp" style="margin-top: 12px; margin-bottom: 6px;">Weekly 7-Day Strip</div>
@@ -242,7 +242,7 @@ document.addEventListener("click", async (e) => {
     window.bigu.login(id);
   }
   if (act === "toggle-center-today") {
-    const nextVal = !state.centerTodayInWeekStrip;
+    const nextVal = !(state.centerTodayInWeekStrip !== false);
     state.centerTodayInWeekStrip = nextVal;
     renderSettings();
     window.bigu.setCenterTodayInWeekStrip(nextVal);

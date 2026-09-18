@@ -46,9 +46,9 @@ function renderCalendar() {
   const now = new Date();
   const currentMonth = now.getMonth() + 1;
   const snap = (state && state.snapshots && state.snapshots[currentServiceId]) || {};
-  const todayLeftVal = typeof snap.todayLeft === "number" ? snap.todayLeft : 0;
-  const showProjected = state && state.showProjectedFutureDays !== false && todayLeftVal > 0;
-  const projPct = Math.round(todayLeftVal);
+  const futureBudgetVal = typeof snap.futureDailyBudget === "number" ? snap.futureDailyBudget : (typeof snap.todayLeft === "number" ? snap.todayLeft : 0);
+  const showProjected = state && state.showProjectedFutureDays !== false && futureBudgetVal > 0;
+  const projPct = Math.round(futureBudgetVal);
 
   let html = "";
 

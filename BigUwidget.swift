@@ -7,8 +7,8 @@ import WebKit
 enum BigUwidgetConfig {
     /// Ko-fi / GitHub Sponsors / PayPal. Donate is hidden if this is nil.
     static let donateURL = URL(string: "https://ko-fi.com/london_vista")
-    static let feedbackURL = URL(string: "https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v1.2.6&body=%2A%2AOS%2A%2A%3A+macOS%0A%2A%2AVersion%2A%2A%3A+v1.2.6%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A")
-    static let appVersion = "1.2.6"
+    static let feedbackURL = URL(string: "https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v1.2.7&body=%2A%2AOS%2A%2A%3A+macOS%0A%2A%2AVersion%2A%2A%3A+v1.2.7%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A")
+    static let appVersion = "1.2.7"
     static let updateFeedURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest/download/latest.json")
     static let githubReleasesURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest")
     static let githubAPIURL = URL(string: "https://api.github.com/repos/LondonVista/biguwidget/releases/latest")
@@ -270,8 +270,11 @@ struct UsageSnapshot: Equatable {
     var prepaidBalance: Double? = nil
     var onDemandEligible: Bool = false
     var onDemandUsed: Double? = nil
+    /// The cached reading is from before a reset that has since passed; shown as 0%.
+    var rolledOver: Bool = false
 
     static func == (lhs: UsageSnapshot, rhs: UsageSnapshot) -> Bool {
+        lhs.rolledOver == rhs.rolledOver &&
         lhs.totalPercent == rhs.totalPercent &&
         lhs.resetsAt == rhs.resetsAt &&
         lhs.resetsLabel == rhs.resetsLabel &&
@@ -308,6 +311,7 @@ enum ServiceKind: String, CaseIterable, Identifiable {
     case agy = "AGY"
     case claudeGPT = "Claude & GPT"
     case chatGPT = "ChatGPT"
+    case claude = "Claude"
     var id: String { rawValue }
 
     var cacheDirName: String {
@@ -317,6 +321,7 @@ enum ServiceKind: String, CaseIterable, Identifiable {
         case .agy: return "AGYusageWidget"
         case .claudeGPT: return "ClaudeGPTUsageWidget"
         case .chatGPT: return "ChatGPTUsageWidget"
+        case .claude: return "ClaudeUsageWidget"
         }
     }
 
@@ -337,7 +342,7 @@ enum ServiceKind: String, CaseIterable, Identifiable {
     }
 
     var showsFiveHour: Bool {
-        self == .agy || self == .claudeGPT || self == .chatGPT
+        self == .agy || self == .claudeGPT || self == .chatGPT || self == .claude
     }
 
     var loginURL: URL {
@@ -346,6 +351,7 @@ enum ServiceKind: String, CaseIterable, Identifiable {
         case .grokBot: return URL(string: "https://cursor.com/login")!
         case .agy, .claudeGPT: return URL(string: "https://antigravity.google")!
         case .chatGPT: return URL(string: "https://chatgpt.com")!
+        case .claude: return URL(string: "https://claude.ai/settings/usage")!
         }
     }
 
@@ -373,6 +379,8 @@ enum ServiceKind: String, CaseIterable, Identifiable {
             return "Log in with the Google account you use for Antigravity. If the Antigravity app is installed, BigUwidget can also read its token. You can paste an access token instead."
         case .chatGPT:
             return "Log in to chatgpt.com below. When you see the chat home page, click I’m signed in. This uses ChatGPT’s unofficial usage feed (5-hour + weekly)."
+        case .claude:
+            return "Uses the sign-in Claude Code keeps in your keychain. If the card says signed out, run claude in Terminal (and /login if asked), then click Check again."
         }
     }
 }
@@ -479,6 +487,9 @@ enum UsageParser {
         return "on \(f.string(from: date))"
     }
 
+    /// Older than this, the "Refreshed …" label turns orange: the card is not updating.
+    static let staleAfter: TimeInterval = 15 * 60
+
     static func lastRefreshed(_ date: Date, now: Date = Date()) -> String {
         let sec = max(0, Int(now.timeIntervalSince(date)))
         if sec < 5 { return "Refreshed just now" }
@@ -509,22 +520,30 @@ enum UsageParser {
         return false
     }
 
-    static func dayKey(for date: Date) -> String {
+    /// Built once: these run many times per redraw. The time zone is re-read on each
+    /// call so travelling or a DST change still keys days in local time.
+    private static let dayKeyFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
-        f.calendar = Calendar.current
-        f.timeZone = Calendar.current.timeZone
         f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: date)
+        return f
+    }()
+    private static let dayKeyLock = NSLock()
+
+    static func dayKey(for date: Date) -> String {
+        dayKeyLock.lock()
+        defer { dayKeyLock.unlock() }
+        dayKeyFormatter.calendar = Calendar.current
+        dayKeyFormatter.timeZone = TimeZone.current
+        return dayKeyFormatter.string(from: date)
     }
 
     static func dayKeyDate(_ key: String) -> Date? {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.calendar = Calendar.current
-        f.timeZone = Calendar.current.timeZone
-        f.dateFormat = "yyyy-MM-dd"
-        return f.date(from: key)
+        dayKeyLock.lock()
+        defer { dayKeyLock.unlock() }
+        dayKeyFormatter.calendar = Calendar.current
+        dayKeyFormatter.timeZone = TimeZone.current
+        return dayKeyFormatter.date(from: key)
     }
 
     /// The calendar day starts at or after the quota reset instant.
@@ -608,7 +627,25 @@ enum UsageParser {
         )
     }
 
-    static let claudeGPTModels = ["Claude 3.7 Sonnet", "Claude 3.5 Sonnet", "Claude 3 Opus", "GPT-OSS 120B"]
+    /// Read from Antigravity's own group description ("Models within this group: …")
+    /// so the strip follows whatever AGY currently bundles.
+    static var claudeGPTModels: [String] {
+        let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("AGYusageWidget/last-raw.json")
+        guard let data = try? Data(contentsOf: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let groups = json["groups"] as? [[String: Any]] else { return [] }
+        let group = groups.first { g in
+            let name = (g["displayName"] as? String ?? "").lowercased()
+            return name.contains("claude") || name.contains("gpt")
+        }
+        guard let desc = group?["description"] as? String,
+              let colon = desc.firstIndex(of: ":") else { return [] }
+        return desc[desc.index(after: colon)...]
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "."))) }
+            .filter { !$0.isEmpty }
+    }
 }
 
 enum PctFmt {

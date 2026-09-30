@@ -10,6 +10,7 @@ final class CombinedStore: ObservableObject {
     @Published var agy = SingleServiceStore(service: .agy, cacheDirName: ServiceKind.agy.cacheDirName)
     @Published var claudeGPT = SingleServiceStore(service: .claudeGPT, cacheDirName: ServiceKind.claudeGPT.cacheDirName)
     @Published var chatGPT = SingleServiceStore(service: .chatGPT, cacheDirName: ServiceKind.chatGPT.cacheDirName)
+    @Published var claude = SingleServiceStore(service: .claude, cacheDirName: ServiceKind.claude.cacheDirName)
 
     private var fetchTimer: Timer?
     private var fetchInFlight = false
@@ -26,6 +27,7 @@ final class CombinedStore: ObservableObject {
         case .agy: return agy
         case .claudeGPT: return claudeGPT
         case .chatGPT: return chatGPT
+        case .claude: return claude
         }
     }
 
@@ -35,6 +37,7 @@ final class CombinedStore: ObservableObject {
         agy.reloadFromDisk()
         claudeGPT.reloadFromDisk()
         chatGPT.reloadFromDisk()
+        claude.reloadFromDisk()
     }
 
     func fetchLiveNow() {
@@ -47,6 +50,7 @@ final class CombinedStore: ObservableObject {
         case .grokBot: fetchCards([.grokBot])
         case .agy, .claudeGPT: fetchCards([.agy, .claudeGPT])
         case .chatGPT: fetchCards([.chatGPT])
+        case .claude: fetchCards([.claude])
         }
     }
 
@@ -711,7 +715,7 @@ struct ServiceCardView: View {
                     Calendar.current.component(.year, from: wallNow),
                     Calendar.current.component(.month, from: wallNow),
                     Calendar.current.component(.day, from: wallNow))
-                let todayUsed = subStore.usedPercent(on: todayKey)
+                let todayUsed = subStore.usedPercent(on: todayKey, currentPoolOnly: true)
                 let status = UsageParser.calculateDailyStatus(
                     totalPercent: snap.totalPercent,
                     todayUsed: todayUsed,
@@ -968,9 +972,10 @@ struct ServiceCardView: View {
                             HStack {
                                 Spacer(minLength: 0)
                                 Button(action: { onRefresh?() }) {
+                                    let stale = now.timeIntervalSince(snap.fetchedAt) > UsageParser.staleAfter
                                     Text(UsageParser.lastRefreshed(snap.fetchedAt, now: now))
-                                        .font(.system(size: 8, weight: .medium))
-                                        .foregroundStyle(Color.white.opacity(0.42))
+                                        .font(.system(size: 8, weight: stale ? .semibold : .medium))
+                                        .foregroundStyle(stale ? Color(hex: 0xFF9F0A).opacity(0.9) : Color.white.opacity(0.42))
                                         .lineLimit(1)
                                         .fixedSize(horizontal: true, vertical: false)
                                 }

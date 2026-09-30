@@ -1,9 +1,9 @@
 {
-  "version": "1.2.6",
-  "notes": "BigUwidget 1.2.6: Only show credit pill when actual prepaid credits exist (prevents inactive on-demand pill on accounts without credit purchases), permanent green dot with clean white typography.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.6",
+  "version": "1.2.7",
+  "notes": "BigUwidget 1.2.7: New Claude card (S5) with 5-hour and weekly limits from your Claude Code sign-in. Fixes Grok freezing at 100% after a weekly reset, keeps a reset day's earlier usage in its bar, shows 0% once a reset passes, flags stale cards in orange, and refreshes after sleep.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.7",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.6/BigUwidget-1.2.6-Mac.zip",
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.7/BigUwidget-1.2.7-Mac.zip",
     "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.3/BigUwidget-1.2.3-Linux.zip",
     "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.3/BigUwidget-1.2.3-Windows.zip"
   }

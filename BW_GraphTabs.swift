@@ -1230,7 +1230,7 @@ extension YearCalendarView {
             return nil
         }()
         let resetAt = snap?.resetsAt
-        let todayUsed = subStore.usedPercent(on: todayKey)
+        let todayUsed = subStore.usedPercent(on: todayKey, currentPoolOnly: true)
         let status = snap.map {
             UsageParser.calculateDailyStatus(
                 totalPercent: $0.totalPercent,

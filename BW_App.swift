@@ -151,6 +151,19 @@ struct RootCombinedWidgetView: View {
                 onRefresh: { masterStore.fetchNow(.chatGPT) },
                 onSignIn: { onOpenLogin(.chatGPT) }
             )
+        case .claude:
+            ServiceCardView(
+                subStore: masterStore.claude,
+                now: now,
+                isMasterTop: isFirst,
+                onMasterMinimize: onMinimize,
+                onMasterClose: onClose,
+                onOpenSettings: onOpenSettings,
+                onOpenSessionHistory: { onOpenSessionHistory(masterStore.claude) },
+                onOpenCalendar: { onOpenCalendar(masterStore.claude) },
+                onRefresh: { masterStore.fetchNow(.claude) },
+                onSignIn: { onOpenLogin(.claude) }
+            )
         }
     }
 }
@@ -259,6 +272,16 @@ struct StandaloneCardWindowView: View {
                                 onOpenCalendar: { onOpenCalendar(masterStore.chatGPT) },
                                 onRefresh: { masterStore.fetchNow(.chatGPT) },
                                 onSignIn: { onOpenLogin(.chatGPT) }
+                            )
+                        case .claude:
+                            ServiceCardView(
+                                subStore: masterStore.claude,
+                                now: context.date,
+                                isMasterTop: false,
+                                onOpenSessionHistory: { onOpenSessionHistory(masterStore.claude) },
+                                onOpenCalendar: { onOpenCalendar(masterStore.claude) },
+                                onRefresh: { masterStore.fetchNow(.claude) },
+                                onSignIn: { onOpenLogin(.claude) }
                             )
                         }
                     }
@@ -497,6 +520,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         setupDockIcon()
+        // Timers do not catch up after sleep; pull fresh numbers once the network is back.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                self?.masterStore.fetchLiveNow()
+            }
+        }
 
         let root = RootCombinedWidgetView(
             masterStore: masterStore,
@@ -825,6 +856,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menu.addItem(NSMenuItem(title: "Sign in to Cursor…", action: #selector(loginGrokBot), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Sign in to AGY…", action: #selector(loginAGY), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Sign in to ChatGPT…", action: #selector(loginChatGPT), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Connect Claude…", action: #selector(loginClaude), keyEquivalent: ""))
         if BigUwidgetConfig.donateURL != nil {
             menu.addItem(NSMenuItem.separator())
             menu.addItem(NSMenuItem(title: "Donate", action: #selector(donateFromDock), keyEquivalent: ""))
@@ -905,6 +937,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc func loginGrokBot() { openLoginWindow(for: .grokBot) }
     @objc func loginAGY() { openLoginWindow(for: .agy) }
     @objc func loginChatGPT() { openLoginWindow(for: .chatGPT) }
+    @objc func loginClaude() { openLoginWindow(for: .claude) }
     @objc func donateFromDock() { openDonate() }
 
     @objc func quitWidget() {

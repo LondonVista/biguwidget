@@ -28,6 +28,7 @@ enum LoginHubSection: String, CaseIterable, Identifiable {
     case cursor
     case agy
     case chatGPT
+    case claude
     case other
 
     var id: String { rawValue }
@@ -38,6 +39,7 @@ enum LoginHubSection: String, CaseIterable, Identifiable {
         case .cursor: return "Cursor"
         case .agy: return "AGY / Claude"
         case .chatGPT: return "ChatGPT"
+        case .claude: return "Claude"
         case .other: return "Other models"
         }
     }
@@ -48,6 +50,7 @@ enum LoginHubSection: String, CaseIterable, Identifiable {
         case .cursor: return "Grok Bot in Cursor"
         case .agy: return "Gemini + Claude via Antigravity"
         case .chatGPT: return "chatgpt.com quota"
+        case .claude: return "Pro / Max plan limits"
         case .other: return "Not tracked yet"
         }
     }
@@ -58,6 +61,7 @@ enum LoginHubSection: String, CaseIterable, Identifiable {
         case .cursor: return .grokBot
         case .agy: return .agy
         case .chatGPT: return .chatGPT
+        case .claude: return .claude
         case .other: return nil
         }
     }
@@ -68,6 +72,7 @@ enum LoginHubSection: String, CaseIterable, Identifiable {
         case .grokBot: return .cursor
         case .agy, .claudeGPT: return .agy
         case .chatGPT: return .chatGPT
+        case .claude: return .claude
         }
     }
 }
@@ -94,7 +99,6 @@ struct ServiceLoginView: View {
     }
 
     private let otherModels: [OtherModelInfo] = [
-        OtherModelInfo(id: "claude", name: "Claude.ai", note: "Anthropic’s web app doesn’t expose a weekly % like Antigravity’s Claude group."),
         OtherModelInfo(id: "gemini", name: "Gemini (google.com)", note: "Different from Antigravity. This card tracks Gemini inside AGY only."),
         OtherModelInfo(id: "copilot", name: "GitHub Copilot", note: "Copilot usage is on GitHub, not in these quota endpoints."),
         OtherModelInfo(id: "perplexity", name: "Perplexity", note: "No documented personal quota feed to poll."),
@@ -154,6 +158,9 @@ struct ServiceLoginView: View {
                             .foregroundStyle(Color.white.opacity(0.58))
                             .fixedSize(horizontal: false, vertical: true)
 
+                        if service == .claude {
+                            claudeConnectPanel
+                        } else {
                         CookieWebView(url: service.loginURL)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -162,6 +169,7 @@ struct ServiceLoginView: View {
                                     .stroke(Color.white.opacity(0.15), lineWidth: 1)
                             )
                             .id(selected)
+                        }
 
                         if selected == .agy {
                             HStack(spacing: 8) {
@@ -187,7 +195,7 @@ struct ServiceLoginView: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(Color.white.opacity(0.7))
                 if let service = selected.service {
-                    Button("I’m signed in") { onFinished(service) }
+                    Button(service == .claude ? "Check again" : "I’m signed in") { onFinished(service) }
                         .buttonStyle(.borderedProminent)
                         .tint(Color(hex: 0x24C1E0))
                 }
@@ -205,9 +213,40 @@ struct ServiceLoginView: View {
         )
     }
 
+    private var claudeConnectPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("No browser sign-in needed")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.92))
+            Text("BigUwidget reads the Claude Code sign-in from your keychain (item “Claude Code-credentials”) and asks Anthropic for the same 5-hour and weekly limits you see at claude.ai → Settings → Usage. The token never leaves your Mac except to api.anthropic.com.")
+                .font(.system(size: 11))
+                .foregroundStyle(Color.white.opacity(0.62))
+                .fixedSize(horizontal: false, vertical: true)
+            Text("If the card shows signed out: open Terminal, run claude, and use /login if it asks. Claude Code refreshes the token on its own, so BigUwidget never rewrites it.")
+                .font(.system(size: 11))
+                .foregroundStyle(Color.white.opacity(0.62))
+                .fixedSize(horizontal: false, vertical: true)
+            Button(action: {
+                WidgetLayoutSettings.shared.enableCard(.claude)
+                onFinished(.claude)
+            }) {
+                Label("Add Claude card and check", systemImage: "plus.circle.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Color(hex: 0xD97757))
+            Spacer()
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.white.opacity(0.05))
+        )
+    }
+
     private var otherModelsPanel: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Tap a provider to add it. ChatGPT can be added now. The rest are listed because people ask — they are not wired yet.")
+            Text("Tap a provider to add it. ChatGPT and Claude can be added now. The rest are listed because people ask — they are not wired yet.")
                 .font(.system(size: 11))
                 .foregroundStyle(Color.white.opacity(0.58))
                 .fixedSize(horizontal: false, vertical: true)
@@ -236,6 +275,34 @@ struct ServiceLoginView: View {
                 .background(
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
                         .fill(Color(hex: 0x24C1E0).opacity(0.12))
+                )
+            }
+            .buttonStyle(.plain)
+
+            Button(action: {
+                WidgetLayoutSettings.shared.enableCard(.claude)
+                selected = .claude
+            }) {
+                HStack(alignment: .center, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Claude (Pro / Max)")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Color.white.opacity(0.92))
+                        Text("Adds a Claude card with 5-hour + weekly limits. Uses your Claude Code sign-in.")
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(Color.white.opacity(0.5))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(Color(hex: 0xD97757))
+                }
+                .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(Color(hex: 0xD97757).opacity(0.12))
                 )
             }
             .buttonStyle(.plain)
@@ -276,6 +343,7 @@ enum WidgetCardID: String, CaseIterable, Identifiable {
     case agy = "AGY"
     case claudeGPT = "Claude & GPT"
     case chatGPT = "ChatGPT"
+    case claude = "Claude"
 
     var id: String { rawValue }
 
@@ -286,6 +354,7 @@ enum WidgetCardID: String, CaseIterable, Identifiable {
         case .agy: return "AGY"
         case .claudeGPT: return "ClaudeGPT"
         case .chatGPT: return "ChatGPT"
+        case .claude: return "Claude"
         }
     }
 
@@ -305,6 +374,7 @@ enum WidgetCardID: String, CaseIterable, Identifiable {
         case .agy: return .agy
         case .claudeGPT: return .claudeGPT
         case .chatGPT: return .chatGPT
+        case .claude: return .claude
         }
     }
 }

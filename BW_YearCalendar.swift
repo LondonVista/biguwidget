@@ -363,12 +363,14 @@ struct YearCalendarView: View {
             }
 
             // Models Included strip
+            let models = UsageParser.claudeGPTModels
+            if !models.isEmpty {
             HStack(spacing: 5) {
                 Text("MODELS:")
                     .font(.system(size: 7.5, weight: .bold, design: .monospaced))
                     .foregroundStyle(Color.white.opacity(0.40))
 
-                ForEach(UsageParser.claudeGPTModels, id: \.self) { m in
+                ForEach(models, id: \.self) { m in
                     let isGpt = m.contains("GPT")
                     let c = isGpt ? Color(hex: 0x34A853) : Color(hex: 0xF28B82)
                     HStack(spacing: 2.5) {
@@ -389,6 +391,7 @@ struct YearCalendarView: View {
                     .foregroundStyle(Color.white.opacity(0.35))
             }
             .padding(.horizontal, 2)
+            }
         }
         .padding(.bottom, 2)
     }

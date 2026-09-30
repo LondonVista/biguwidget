@@ -256,6 +256,14 @@ enum LiveServiceFetcher {
             }
         }
 
+        if enabled.contains(.claude) {
+            group.enter()
+            fetchClaude { outcome in
+                setOutcome(.claude, outcome)
+                group.leave()
+            }
+        }
+
         group.notify(queue: .main) {
             completion(outcomes)
         }
@@ -678,11 +686,13 @@ enum LiveServiceFetcher {
         if let data = try? Data(contentsOf: dailyURL),
            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: [String: Any]] {
             for (k, v) in obj {
-                map[k] = [
+                var e: [String: Double] = [
                     "open": (v["open"] as? NSNumber)?.doubleValue ?? 0,
                     "close": (v["close"] as? NSNumber)?.doubleValue ?? 0,
                     "accumulated": (v["accumulated"] as? NSNumber)?.doubleValue ?? 0
                 ]
+                if let pre = (v["preReset"] as? NSNumber)?.doubleValue { e["preReset"] = pre }
+                map[k] = e
             }
         }
 
@@ -707,10 +717,12 @@ enum LiveServiceFetcher {
                 return false
             }
             if scheduled {
+                // Resets land mid-day, not at midnight. Bank what was used before the
+                // reset so today's bar shows the whole day, then count up from 0.
+                let open = entry["open"] ?? prevClose
+                entry["preReset"] = (entry["preReset"] ?? 0) + max(0, prevClose - open)
                 entry["accumulated"] = 0
-                if totalPercent + 15 < prevClose {
-                    entry["open"] = 0
-                }
+                entry["open"] = 0
             } else {
                 let drop = prevClose - totalPercent
                 entry["accumulated"] = (entry["accumulated"] ?? 0) + drop
@@ -852,8 +864,11 @@ enum LiveServiceFetcher {
             try? dData.write(to: rawURL, options: .atomic)
         }
 
-        guard let total = parsed["usagePercent"] as? Double else { return }
         let products = parsed["productUsage"] as? [[String: Any]] ?? []
+        // Right after a weekly reset Grok sends only the new period with no usage floats.
+        // That is 0% used, not an unreadable reply; skipping it froze the card at 100%.
+        let freshPeriod = products.isEmpty && parsed["currentPeriod"] != nil
+        guard let total = (parsed["usagePercent"] as? Double) ?? (freshPeriod ? 0 : nil) else { return }
         var slices: [[String: Any]] = []
         for p in products {
             let pName = p["name"] as? String ?? "Product"
@@ -1087,6 +1102,180 @@ enum LiveServiceFetcher {
             minStep: 0.003,
             maxStep: 100.0,
             prevTotalOverride: nil
+        )
+    }
+}
+
+// MARK: - Claude (Pro / Max) via Claude Code's OAuth sign-in
+
+extension LiveServiceFetcher {
+    /// The usage endpoint allows about one call per 2 min per token (measured 2026-09-30:
+    /// a 429 clears after 91-121 s), shared with Claude Code itself. Poll every 2.5 min
+    /// and back off on 429 up to 15 min.
+    private static let claudeBaseInterval: TimeInterval = 150
+    private static let claudeMaxInterval: TimeInterval = 900
+    /// A 429 only turns into a visible warning once the numbers are this old.
+    private static let claudeStaleAfter: TimeInterval = 900
+    private static var claudeInterval: TimeInterval = claudeBaseInterval
+    private static var claudeLastAttempt: Date?
+    private static var claudeLastSuccess: Date?
+    private static var claudeLastOutcome: FetchOutcome = .success
+
+    static func fetchClaude(completion: ((FetchOutcome) -> Void)? = nil) {
+        if let last = claudeLastAttempt, Date().timeIntervalSince(last) < claudeInterval {
+            completion?(claudeLastOutcome)
+            return
+        }
+        claudeLastAttempt = Date()
+        DispatchQueue.global(qos: .utility).async {
+            let creds = readClaudeCodeCredentials()
+            DispatchQueue.main.async {
+                guard let creds else {
+                    claudeLastOutcome = .needsLogin
+                    completion?(.needsLogin)
+                    return
+                }
+                fetchClaudeUsage(token: creds.token, plan: creds.plan) { outcome in
+                    var shown = outcome
+                    switch outcome {
+                    case .success:
+                        claudeLastSuccess = Date()
+                        claudeInterval = claudeBaseInterval
+                    case .failed("Rate limited"):
+                        claudeInterval = min(claudeMaxInterval, claudeInterval * 2)
+                        let last = claudeLastSuccess ?? claudeCachedFetchDate()
+                        let age = last.map { Date().timeIntervalSince($0) } ?? .infinity
+                        if age < claudeStaleAfter { shown = .success }
+                    default:
+                        break
+                    }
+                    claudeLastOutcome = shown
+                    completion?(shown)
+                }
+            }
+        }
+    }
+
+    private static func claudeCachedFetchDate() -> Date? {
+        let url = serviceDir("ClaudeUsageWidget").appendingPathComponent("last-usage.json")
+        guard let data = try? Data(contentsOf: url),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let ts = (obj["fetchedAt"] as? NSNumber)?.doubleValue else { return nil }
+        return Date(timeIntervalSince1970: ts)
+    }
+
+    /// Read-only. Claude Code owns this token and refreshes it itself; refreshing here
+    /// would rotate the refresh token and sign Claude Code out.
+    private static func readClaudeCodeCredentials() -> (token: String, plan: String)? {
+        func parse(_ data: Data) -> (token: String, plan: String)? {
+            guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let oauth = obj["claudeAiOauth"] as? [String: Any],
+                  let token = oauth["accessToken"] as? String, !token.isEmpty else { return nil }
+            let sub = (oauth["subscriptionType"] as? String) ?? ""
+            return (token, sub.isEmpty ? "Claude" : "Claude \(sub.capitalized)")
+        }
+
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+        p.arguments = ["find-generic-password", "-s", "Claude Code-credentials", "-w"]
+        let pipe = Pipe()
+        p.standardOutput = pipe
+        p.standardError = Pipe()
+        if (try? p.run()) != nil {
+            // An unanswered keychain prompt would block forever, and every card's
+            // refresh waits on this one. Give the user a minute, then give up.
+            let killer = DispatchWorkItem { if p.isRunning { p.terminate() } }
+            DispatchQueue.global().asyncAfter(deadline: .now() + 60, execute: killer)
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            p.waitUntilExit()
+            killer.cancel()
+            if p.terminationStatus == 0, let creds = parse(data) {
+                return creds
+            }
+        }
+
+        let file = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".claude/.credentials.json")
+        if let data = try? Data(contentsOf: file) {
+            return parse(data)
+        }
+        return nil
+    }
+
+    private static func fetchClaudeUsage(token: String, plan: String, completion: @escaping (FetchOutcome) -> Void) {
+        guard let url = URL(string: "https://api.anthropic.com/api/oauth/usage") else {
+            completion(.failed("Couldn't refresh"))
+            return
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
+        req.setValue("BigUwidget/\(BigUwidgetConfig.appVersion)", forHTTPHeaderField: "User-Agent")
+
+        session.dataTask(with: req) { data, response, error in
+            DispatchQueue.main.async {
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                if status == 401 || status == 403 {
+                    completion(.needsLogin)
+                    return
+                }
+                if status == 429 {
+                    completion(.failed("Rate limited"))
+                    return
+                }
+                guard status == 200, let data,
+                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    completion(agyFailOutcome(status: status, error: error))
+                    return
+                }
+                saveClaudeData(json, rawData: data, plan: plan)
+                completion(.success)
+            }
+        }.resume()
+    }
+
+    private static func claudeWindow(_ window: Any?) -> (used: Double, resetsAt: Double?)? {
+        guard let window = window as? [String: Any],
+              let used = (window["utilization"] as? NSNumber)?.doubleValue else { return nil }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let raw = window["resets_at"] as? String ?? ""
+        let reset = (iso.date(from: raw) ?? ISO8601DateFormatter().date(from: raw))?.timeIntervalSince1970
+        return (max(0, min(100, used)), reset)
+    }
+
+    private static func claudeCreditBalance(_ spend: [String: Any]?) -> Double? {
+        guard let balance = spend?["balance"] else { return nil }
+        if let n = (balance as? NSNumber)?.doubleValue { return n }
+        guard let obj = balance as? [String: Any],
+              let minor = (obj["amount_minor"] as? NSNumber)?.doubleValue else { return nil }
+        let exp = (obj["exponent"] as? NSNumber)?.intValue ?? 2
+        return minor / pow(10, Double(exp))
+    }
+
+    private static func saveClaudeData(_ json: [String: Any], rawData: Data, plan: String) {
+        let dir = serviceDir("ClaudeUsageWidget")
+        try? rawData.write(to: dir.appendingPathComponent("last-raw.json"), options: .atomic)
+
+        let five = claudeWindow(json["five_hour"])
+        guard let weekly = claudeWindow(json["seven_day"]) ?? five else { return }
+        let spend = json["spend"] as? [String: Any]
+        writeServiceCache(
+            dir: dir,
+            planLabel: plan,
+            totalPercent: weekly.used,
+            slices: [["name": "Claude", "percent": weekly.used]],
+            resetsAt: weekly.resetsAt,
+            fiveHourPercent: five?.used,
+            fiveHourResetsAt: five?.resetsAt,
+            nowTs: Date().timeIntervalSince1970,
+            minStep: 0.003,
+            maxStep: 100.0,
+            prevTotalOverride: nil,
+            prepaidBalance: claudeCreditBalance(spend),
+            onDemandEligible: (spend?["enabled"] as? Bool) ?? false
         )
     }
 }

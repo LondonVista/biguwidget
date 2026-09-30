@@ -147,11 +147,14 @@ final class SingleServiceStore: ObservableObject {
         return dailyMap[UsageParser.dayKey(for: prev)]?["close"]
     }
 
-    func usedPercent(on key: String) -> Double {
+    /// The strip shows the whole calendar day. `currentPoolOnly` drops usage banked before
+    /// the reset that opened the current period, so today's budget and "above" warning
+    /// only see the new pool.
+    func usedPercent(on key: String, currentPoolOnly: Bool = false) -> Double {
         let e = dailyMap[key] ?? [:]
         guard let open = e["open"], var close = e["close"] else { return 0.0 }
 
-        if key == UsageParser.dayKey(for: Date()), case .ready(let snap) = state {
+        if key == UsageParser.dayKey(for: Date()), case .ready(let snap) = state, !snap.rolledOver {
             close = snap.totalPercent
         }
 
@@ -178,7 +181,14 @@ final class SingleServiceStore: ObservableObject {
             effectiveOpen = 0
         }
 
-        return max(0, close - effectiveOpen)
+        // Usage before a mid-day weekly reset, banked when the drop was recorded.
+        var preReset = e["preReset"] ?? 0
+        if currentPoolOnly, let resetsAt,
+           let periodStart = Calendar.current.date(byAdding: .day, value: -7, to: resetsAt),
+           UsageParser.dayKey(for: periodStart) == key {
+            preReset = 0
+        }
+        return max(0, close - effectiveOpen) + preReset
     }
 
     /// Intra-week extra pool only. A scheduled weekly reset, a day that closed
@@ -402,11 +412,13 @@ final class SingleServiceStore: ObservableObject {
         }
         var out: [String: [String: Double]] = [:]
         for (k, v) in obj {
-            out[k] = [
+            var e: [String: Double] = [
                 "open": (v["open"] as? NSNumber)?.doubleValue ?? 0,
                 "close": (v["close"] as? NSNumber)?.doubleValue ?? 0,
                 "accumulated": (v["accumulated"] as? NSNumber)?.doubleValue ?? 0
             ]
+            if let pre = (v["preReset"] as? NSNumber)?.doubleValue { e["preReset"] = pre }
+            out[k] = e
         }
         return out
     }
@@ -492,7 +504,7 @@ final class SingleServiceStore: ObservableObject {
     }
 
     private func parseSnapshot(_ d: [String: Any]) -> UsageSnapshot? {
-        let rLabel = d["resetsLabel"] as? String ?? ""
+        var rLabel = d["resetsLabel"] as? String ?? ""
 
         var slices: [UsageSlice] = []
         if let sl = d["slices"] as? [[String: Any]] {
@@ -517,6 +529,23 @@ final class SingleServiceStore: ObservableObject {
         if service == .claudeGPT, slices.contains(where: { $0.name.contains("Claude") }) == false,
            let claude = quotaGroup(namedContains: "claude") ?? quotaGroup(namedContains: "gpt") {
             applyQuotaGroup(claude, total: &total, resetsAt: &rDate, fiveUsed: &fiveUsed, fiveReset: &fiveReset, slices: &slices, sliceName: "Claude & GPT")
+        }
+
+        // A reset has passed but no reading of the new period has landed yet (offline,
+        // signed out, or an empty reply). Last week's number is no longer true: the pool is fresh.
+        var rolledOver = false
+        if let r = rDate, r <= Date() {
+            rolledOver = true
+            total = 0
+            slices = slices.map { UsageSlice(name: $0.name, percent: 0, color: $0.color) }
+            rDate = nil
+            rLabel = "Reset — waiting for new data"
+        }
+        var fiveLabelShown = fiveLabel
+        if let f = fiveReset, f <= Date() {
+            fiveUsed = 0
+            fiveReset = nil
+            fiveLabelShown = nil
         }
 
         var recentDeltas: [RecentDeltaItem] = []
@@ -551,13 +580,14 @@ final class SingleServiceStore: ObservableObject {
             yesterdayUsed: nil,
             fiveHourPercent: fiveUsed,
             fiveHourResetsAt: fiveReset,
-            fiveHourResetsLabel: fiveLabel,
+            fiveHourResetsLabel: fiveLabelShown,
             planLabel: plan,
             fetchedAt: fDate,
             recentDeltas: recentDeltas,
             prepaidBalance: prepaidBalance,
             onDemandEligible: onDemandEligible,
-            onDemandUsed: onDemandUsed
+            onDemandUsed: onDemandUsed,
+            rolledOver: rolledOver
         )
     }
 

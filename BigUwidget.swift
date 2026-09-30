@@ -7,8 +7,8 @@ import WebKit
 enum BigUwidgetConfig {
     /// Ko-fi / GitHub Sponsors / PayPal. Donate is hidden if this is nil.
     static let donateURL = URL(string: "https://ko-fi.com/london_vista")
-    static let feedbackURL = URL(string: "https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v1.2.4&body=%2A%2AOS%2A%2A%3A+macOS%0A%2A%2AVersion%2A%2A%3A+v1.2.4%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A")
-    static let appVersion = "1.2.4"
+    static let feedbackURL = URL(string: "https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v1.2.5&body=%2A%2AOS%2A%2A%3A+macOS%0A%2A%2AVersion%2A%2A%3A+v1.2.5%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A")
+    static let appVersion = "1.2.5"
     static let updateFeedURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest/download/latest.json")
     static let githubReleasesURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest")
     static let githubAPIURL = URL(string: "https://api.github.com/repos/LondonVista/biguwidget/releases/latest")
@@ -267,6 +267,9 @@ struct UsageSnapshot: Equatable {
     var planLabel: String
     var fetchedAt: Date
     var recentDeltas: [RecentDeltaItem] = []
+    var prepaidBalance: Double? = nil
+    var onDemandEligible: Bool = false
+    var onDemandUsed: Double? = nil
 
     static func == (lhs: UsageSnapshot, rhs: UsageSnapshot) -> Bool {
         lhs.totalPercent == rhs.totalPercent &&
@@ -279,7 +282,10 @@ struct UsageSnapshot: Equatable {
         lhs.fiveHourResetsAt == rhs.fiveHourResetsAt &&
         lhs.fiveHourResetsLabel == rhs.fiveHourResetsLabel &&
         lhs.planLabel == rhs.planLabel &&
-        lhs.recentDeltas == rhs.recentDeltas
+        lhs.recentDeltas == rhs.recentDeltas &&
+        lhs.prepaidBalance == rhs.prepaidBalance &&
+        lhs.onDemandEligible == rhs.onDemandEligible &&
+        lhs.onDemandUsed == rhs.onDemandUsed
     }
 }
 

@@ -538,6 +538,10 @@ final class SingleServiceStore: ObservableObject {
             recentDeltas = loadLegacyClaudeDeltas()
         }
 
+        let prepaidBalance = (d["prepaidBalance"] as? NSNumber)?.doubleValue
+        let onDemandEligible = (d["onDemandEligible"] as? NSNumber)?.boolValue ?? (d["onDemandEligible"] as? Bool ?? false)
+        let onDemandUsed = (d["onDemandUsed"] as? NSNumber)?.doubleValue
+
         return UsageSnapshot(
             totalPercent: total,
             resetsAt: rDate,
@@ -550,7 +554,10 @@ final class SingleServiceStore: ObservableObject {
             fiveHourResetsLabel: fiveLabel,
             planLabel: plan,
             fetchedAt: fDate,
-            recentDeltas: recentDeltas
+            recentDeltas: recentDeltas,
+            prepaidBalance: prepaidBalance,
+            onDemandEligible: onDemandEligible,
+            onDemandUsed: onDemandUsed
         )
     }
 

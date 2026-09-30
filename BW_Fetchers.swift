@@ -447,6 +447,9 @@ enum LiveServiceFetcher {
 
         let nowTs = Date().timeIntervalSince1970
         let prevClaudeFromAGY = readClaudeSliceFromAGY()
+        let onDemand = (json["onDemandSettings"] as? [String: Any]) ?? (json["billing"] as? [String: Any])
+        let onDemandEligible = (json["onDemandEligible"] as? Bool) ?? (onDemand?["eligible"] as? Bool) ?? false
+        let prepaidBalance = (json["prepaidBalance"] as? Double) ?? (json["credits"] as? Double)
 
         if let geminiWeekly {
             writeServiceCache(
@@ -460,7 +463,9 @@ enum LiveServiceFetcher {
                 nowTs: nowTs,
                 minStep: 0.003,
                 maxStep: 30.0,
-                prevTotalOverride: nil
+                prevTotalOverride: nil,
+                prepaidBalance: prepaidBalance,
+                onDemandEligible: onDemandEligible
             )
         }
 
@@ -479,7 +484,9 @@ enum LiveServiceFetcher {
                 nowTs: nowTs,
                 minStep: 0.003,
                 maxStep: 30.0,
-                prevTotalOverride: prevClaude
+                prevTotalOverride: prevClaude,
+                prepaidBalance: prepaidBalance,
+                onDemandEligible: onDemandEligible
             )
         }
     }
@@ -734,7 +741,10 @@ enum LiveServiceFetcher {
         nowTs: Double,
         minStep: Double,
         maxStep: Double,
-        prevTotalOverride: Double?
+        prevTotalOverride: Double?,
+        prepaidBalance: Double? = nil,
+        onDemandEligible: Bool = false,
+        onDemandUsed: Double? = nil
     ) {
         let lastUsageURL = dir.appendingPathComponent("last-usage.json")
         let deltasURL = dir.appendingPathComponent("session-deltas.json")
@@ -782,6 +792,9 @@ enum LiveServiceFetcher {
             dict["fiveHourResetsAt"] = f5r
             dict["fiveHourResetsLabel"] = UsageParser.formatResetOn(Date(timeIntervalSince1970: f5r))
         }
+        if let pb = prepaidBalance { dict["prepaidBalance"] = pb }
+        if onDemandEligible { dict["onDemandEligible"] = true }
+        if let odu = onDemandUsed { dict["onDemandUsed"] = odu }
         if let uData = try? JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted]) {
             try? uData.write(to: lastUsageURL, options: .atomic)
         }
@@ -826,8 +839,15 @@ enum LiveServiceFetcher {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let grokDir = appSupport.appendingPathComponent("GrokUsageWidget", isDirectory: true)
         try? FileManager.default.createDirectory(at: grokDir, withIntermediateDirectories: true)
+        let binURL = grokDir.appendingPathComponent("last-raw.bin")
+        try? rawData.write(to: binURL, options: .atomic)
         let rawURL = grokDir.appendingPathComponent("last-raw.json")
-        let dump: [String: Any] = ["status": 200, "bytes": rawData.count, "parsed": parsed]
+        let dump: [String: Any] = [
+            "status": 200,
+            "bytes": rawData.count,
+            "rawBase64": rawData.base64EncodedString(),
+            "parsed": parsed
+        ]
         if let dData = try? JSONSerialization.data(withJSONObject: dump, options: [.prettyPrinted]) {
             try? dData.write(to: rawURL, options: .atomic)
         }
@@ -841,6 +861,8 @@ enum LiveServiceFetcher {
             slices.append(["name": pName, "percent": pUsed])
         }
 
+        let prepaidBalance = parsed["prepaidBalance"] as? Double
+        let onDemandUsed = parsed["onDemandUsed"] as? Double
         let period = parsed["currentPeriod"] as? [String: Any]
         let resetStr = period?["end"] as? String
         let iso = ISO8601DateFormatter()
@@ -859,7 +881,10 @@ enum LiveServiceFetcher {
             nowTs: nowTs,
             minStep: 0.005,
             maxStep: 50.0,
-            prevTotalOverride: nil
+            prevTotalOverride: nil,
+            prepaidBalance: prepaidBalance,
+            onDemandEligible: false,
+            onDemandUsed: onDemandUsed
         )
     }
 
@@ -914,6 +939,8 @@ enum LiveServiceFetcher {
         let isoFallback = ISO8601DateFormatter()
         let resetDate = resetStr.flatMap { iso.date(from: $0) ?? isoFallback.date(from: $0) }
         let nowTs = Date().timeIntervalSince1970
+        let onDemand = json["onDemandSettings"] as? [String: Any]
+        let onDemandEligible = (onDemand?["eligible"] as? Bool) ?? false
         writeServiceCache(
             dir: botDir,
             planLabel: plan,
@@ -925,7 +952,10 @@ enum LiveServiceFetcher {
             nowTs: nowTs,
             minStep: 0.003,
             maxStep: 50.0,
-            prevTotalOverride: nil
+            prevTotalOverride: nil,
+            prepaidBalance: nil,
+            onDemandEligible: onDemandEligible,
+            onDemandUsed: nil
         )
     }
 
@@ -1230,6 +1260,77 @@ enum CreditsBinary {
         if usagePercent == nil && productUsage.isEmpty && periodStart == nil && periodEnd == nil {
             return nil
         }
+        var prepaidBalance: Double?
+        var onDemandCap: Double?
+        var onDemandUsed: Double?
+
+        var pIdx = 5
+        while pIdx < buf.count {
+            let (tag, next) = varint(buf, pIdx)
+            let field = tag >> 3
+            let wire = tag & 0x07
+            if field == 1 && wire == 2 {
+                let (subLen, subStart) = varint(buf, next)
+                let subEnd = min(buf.count, subStart + subLen)
+                var p = subStart
+                while p < subEnd {
+                    let (cfgTag, cfgNext) = varint(buf, p)
+                    let cfgField = cfgTag >> 3
+                    let cfgWire = cfgTag & 0x07
+                    if cfgWire == 2 {
+                        let (cLen, cStart) = varint(buf, cfgNext)
+                        let cEnd = min(buf.count, cStart + cLen)
+                        if cfgField == 12 { // prepaid_balance
+                            if cStart < cEnd {
+                                let (centTag, centNext) = varint(buf, cStart)
+                                if (centTag >> 3) == 1 && (centTag & 7) == 0 {
+                                    let (cents, _) = varint(buf, centNext)
+                                    prepaidBalance = Double(cents) / 100.0
+                                }
+                            }
+                        } else if cfgField == 2 { // on_demand_cap
+                            if cStart < cEnd {
+                                let (centTag, centNext) = varint(buf, cStart)
+                                if (centTag >> 3) == 1 && (centTag & 7) == 0 {
+                                    let (cents, _) = varint(buf, centNext)
+                                    onDemandCap = Double(cents) / 100.0
+                                }
+                            }
+                        } else if cfgField == 3 { // on_demand_used
+                            if cStart < cEnd {
+                                let (centTag, centNext) = varint(buf, cStart)
+                                if (centTag >> 3) == 1 && (centTag & 7) == 0 {
+                                    let (cents, _) = varint(buf, centNext)
+                                    onDemandUsed = Double(cents) / 100.0
+                                }
+                            }
+                        }
+                        p = cEnd
+                    } else if cfgWire == 0 {
+                        p = varint(buf, cfgNext).next
+                    } else if cfgWire == 5 {
+                        p = cfgNext + 4
+                    } else if cfgWire == 1 {
+                        p = cfgNext + 8
+                    } else {
+                        break
+                    }
+                }
+                break
+            } else if wire == 0 {
+                pIdx = varint(buf, next).next
+            } else if wire == 2 {
+                let (subLen, subStart) = varint(buf, next)
+                pIdx = subStart + subLen
+            } else if wire == 5 {
+                pIdx = next + 4
+            } else if wire == 1 {
+                pIdx = next + 8
+            } else {
+                break
+            }
+        }
+
         var period: [String: Any] = ["type": "weekly"]
         if let periodStart { period["start"] = periodStart }
         if let periodEnd { period["end"] = periodEnd }
@@ -1239,6 +1340,15 @@ enum CreditsBinary {
         ]
         if let usagePercent {
             result["usagePercent"] = usagePercent
+        }
+        if let prepaidBalance {
+            result["prepaidBalance"] = prepaidBalance
+        }
+        if let onDemandCap {
+            result["onDemandCap"] = onDemandCap
+        }
+        if let onDemandUsed {
+            result["onDemandUsed"] = onDemandUsed
         }
         return result
     }

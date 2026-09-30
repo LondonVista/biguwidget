@@ -739,11 +739,19 @@ struct ServiceCardView: View {
                         Spacer(minLength: 2)
 
                         HStack(spacing: 4) {
-                            Text("today: \(UsageParser.formatSoft(status.todayLeft)) left")
-                                .foregroundStyle(Color.white.opacity(0.88))
-                            if status.todayOverrun > 0.05 {
-                                Text("\(UsageParser.formatOverrun(status.todayOverrun)) above")
-                                    .foregroundStyle(Color(hex: 0xFF8B82))
+                            if let balance = snap.prepaidBalance, balance > 0, snap.totalPercent >= 99.5 {
+                                Text("credits active · $\(String(format: "%.2f", balance))")
+                                    .foregroundStyle(Color(hex: 0x30D158))
+                            } else if snap.onDemandEligible && snap.totalPercent >= 99.5 {
+                                Text("on-demand active")
+                                    .foregroundStyle(Color(hex: 0x24C1E0))
+                            } else {
+                                Text("today: \(UsageParser.formatSoft(status.todayLeft)) left")
+                                    .foregroundStyle(Color.white.opacity(0.88))
+                                if status.todayOverrun > 0.05 {
+                                    Text("\(UsageParser.formatOverrun(status.todayOverrun)) above")
+                                        .foregroundStyle(Color(hex: 0xFF8B82))
+                                }
                             }
                         }
                         .font(.system(size: 9.5, weight: .semibold))
@@ -920,20 +928,66 @@ struct ServiceCardView: View {
                                 }
                         }
                         VStack(alignment: .leading, spacing: 2) {
-                            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                                Text("today: \(UsageParser.formatSoft(status.todayLeft)) left")
-                                    .font(.system(size: 10.5, weight: .semibold))
-                                    .foregroundStyle(Color.white.opacity(0.92))
-                                    .lineLimit(1)
-                                    .fixedSize(horizontal: true, vertical: false)
-                                if status.todayOverrun > 0.05 {
-                                    Text("\(UsageParser.formatOverrun(status.todayOverrun)) above")
+                            HStack(alignment: .firstTextBaseline) {
+                                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                    Text("today: \(UsageParser.formatSoft(status.todayLeft)) left")
                                         .font(.system(size: 10.5, weight: .semibold))
-                                        .foregroundStyle(Color(hex: 0xFF8B82))
+                                        .foregroundStyle(Color.white.opacity(0.92))
                                         .lineLimit(1)
                                         .fixedSize(horizontal: true, vertical: false)
+                                    if status.todayOverrun > 0.05 {
+                                        Text("\(UsageParser.formatOverrun(status.todayOverrun)) above")
+                                            .font(.system(size: 10.5, weight: .semibold))
+                                            .foregroundStyle(Color(hex: 0xFF8B82))
+                                            .lineLimit(1)
+                                            .fixedSize(horizontal: true, vertical: false)
+                                    }
                                 }
-                                Spacer(minLength: 0)
+                                Spacer(minLength: 4)
+
+                                if let balance = snap.prepaidBalance, balance > 0 {
+                                    let isActive = snap.totalPercent >= 99.5
+                                    HStack(spacing: 3.5) {
+                                        Circle()
+                                            .fill(Color(hex: 0x30D158))
+                                            .frame(width: isActive ? 5 : 4, height: isActive ? 5 : 4)
+                                        Text(isActive ? String(format: "$%.2f active", balance) : String(format: "$%.2f pool", balance))
+                                            .font(.system(size: isActive ? 10.0 : 9.0, weight: .medium, design: .rounded))
+                                            .foregroundStyle(Color.white.opacity(0.92))
+                                    }
+                                    .padding(.horizontal, isActive ? 5.5 : 4.5)
+                                    .padding(.vertical, isActive ? 2.0 : 1.5)
+                                    .background(
+                                        Capsule()
+                                            .fill(isActive ? Color(hex: 0x30D158).opacity(0.18) : Color.white.opacity(0.06))
+                                            .overlay(
+                                                Capsule()
+                                                    .stroke(isActive ? Color(hex: 0x30D158).opacity(0.40) : Color.white.opacity(0.08), lineWidth: 0.5)
+                                            )
+                                    )
+                                    .help(isActive ? "Actively consuming prepaid dollar credits: $\(String(format: "%.2f", balance)) remaining" : "Prepaid dollar pool: $\(String(format: "%.2f", balance)) (inactive until weekly plan reaches 100%)")
+                                } else if snap.onDemandEligible {
+                                    let isActive = snap.totalPercent >= 99.5
+                                    HStack(spacing: 3.5) {
+                                        Circle()
+                                            .fill(Color(hex: 0x24C1E0))
+                                            .frame(width: isActive ? 5 : 4, height: isActive ? 5 : 4)
+                                        Text(isActive ? "on-demand active" : "on-demand")
+                                            .font(.system(size: isActive ? 9.5 : 9.0, weight: .medium))
+                                            .foregroundStyle(Color.white.opacity(0.92))
+                                    }
+                                    .padding(.horizontal, isActive ? 5.0 : 4.0)
+                                    .padding(.vertical, isActive ? 2.0 : 1.5)
+                                    .background(
+                                        Capsule()
+                                            .fill(isActive ? Color(hex: 0x24C1E0).opacity(0.18) : Color.white.opacity(0.06))
+                                            .overlay(
+                                                Capsule()
+                                                    .stroke(isActive ? Color(hex: 0x24C1E0).opacity(0.40) : Color.white.opacity(0.08), lineWidth: 0.5)
+                                            )
+                                    )
+                                    .help(isActive ? "Actively using on-demand spending" : "On-demand spending standby (inactive until fast requests hit 100%)")
+                                }
                             }
                             HStack {
                                 Spacer(minLength: 0)

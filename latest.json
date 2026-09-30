@@ -1,9 +1,9 @@
 {
-  "version": "1.2.5",
-  "notes": "BigUwidget 1.2.5: Prepaid dollar credits ($) pool tracking for Grok, on-demand status indicator for Cursor & AGY, permanent green dot with standard white typography, and multi-display auto-clamping.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.5",
+  "version": "1.2.6",
+  "notes": "BigUwidget 1.2.6: Only show credit pill when actual prepaid credits exist (prevents inactive on-demand pill on accounts without credit purchases), permanent green dot with clean white typography.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.6",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.5/BigUwidget-1.2.5-Mac.zip",
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.6/BigUwidget-1.2.6-Mac.zip",
     "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.3/BigUwidget-1.2.3-Linux.zip",
     "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.3/BigUwidget-1.2.3-Windows.zip"
   }

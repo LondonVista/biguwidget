@@ -131,7 +131,6 @@ struct YearCalendarView: View {
 
     func resetsQuickBanner() -> some View {
         let resets = subStore.loadQuotaResets()
-        let manualCount = resets.filter { $0.type == "manual" || $0.type == "intraweek" }.count
         let latest = resets.first
 
         return HStack(spacing: 7) {
@@ -283,7 +282,8 @@ struct YearCalendarView: View {
                     HStack {
                         if let r = snap.resetsAt {
                             let parts = UsageParser.remainingParts(until: r)
-                            Text("Resets in \(parts.days != nil ? "\(parts.days!) " : "")\(parts.rest) · \(snap.resetsLabel)")
+                            let dayPrefix = parts.days.map { "\($0) " } ?? ""
+                            Text("\(parts.rest == "now" ? "Resets" : "Resets in") \(dayPrefix)\(parts.rest) · \(snap.resetsLabel)")
                                 .font(.system(size: 8, weight: .medium))
                                 .foregroundStyle(Color.white.opacity(0.48))
                         } else {
@@ -337,7 +337,7 @@ struct YearCalendarView: View {
                     HStack {
                         if let r = snap.fiveHourResetsAt {
                             let parts = UsageParser.remainingParts(until: r)
-                            Text("Resets in \(parts.rest) · \(snap.fiveHourResetsLabel ?? "")")
+                            Text("\(parts.rest == "now" ? "Resets" : "Resets in") \(parts.rest) · \(snap.fiveHourResetsLabel ?? "")")
                                 .font(.system(size: 8, weight: .medium))
                                 .foregroundStyle(Color.white.opacity(0.48))
                         } else {
@@ -583,8 +583,8 @@ struct YearCalendarView: View {
             )
             statTile(
                 title: "PEAK BURST HOUR",
-                value: data.peakBin != nil ? "\(data.peakBin!.hourLabel) (\(String(format: "+%.2f%%", data.peakBin!.delta)))" : "None",
-                subtext: data.peakBin != nil ? "\(data.peakBin!.promptCount) prompts in hour" : "No burst yet",
+                value: data.peakBin.map { "\($0.hourLabel) (\(String(format: "+%.2f%%", $0.delta)))" } ?? "None",
+                subtext: data.peakBin.map { "\($0.promptCount) prompts in hour" } ?? "No burst yet",
                 icon: "flame.fill",
                 accentColor: Color(hex: 0xFF5722)
             )
@@ -897,8 +897,8 @@ struct YearCalendarView: View {
             )
             statTile(
                 title: "PEAK USAGE DAY",
-                value: data.peakBin != nil ? "\(data.peakBin!.dayLabel) (\(String(format: "+%.2f%%", data.peakBin!.delta)))" : "None",
-                subtext: data.peakBin != nil ? "\(data.peakBin!.promptCount) prompts on \(data.peakBin!.dayLabel)" : "No activity",
+                value: data.peakBin.map { "\($0.dayLabel) (\(String(format: "+%.2f%%", $0.delta)))" } ?? "None",
+                subtext: data.peakBin.map { "\($0.promptCount) prompts on \($0.dayLabel)" } ?? "No activity",
                 icon: "flame.fill",
                 accentColor: Color(hex: 0xFF5722)
             )
@@ -1164,10 +1164,10 @@ struct YearCalendarView: View {
         }()
 
         return dayOrRangePromptsList(
-            title: activeBin != nil ? activeBin!.fullDateLabel.uppercased() : (data.isCurrentWeek ? "THIS WEEK'S PROMPTS" : "WEEK PROMPT LOG"),
+            title: activeBin.map { $0.fullDateLabel.uppercased() } ?? (data.isCurrentWeek ? "THIS WEEK'S PROMPTS" : "WEEK PROMPT LOG"),
             prompts: promptsToShow,
             isFiltered: activeBin != nil,
-            emptyMessage: activeBin != nil ? "No prompt records for \(activeBin!.dayLabel)" : "No prompt activity this week",
+            emptyMessage: activeBin.map { "No prompt records for \($0.dayLabel)" } ?? "No prompt activity this week",
             onClearFilter: {
                 selectedDayKey = nil
             }

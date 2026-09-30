@@ -418,7 +418,9 @@ enum LiveServiceFetcher {
             let buckets = g["buckets"] as? [[String: Any]] ?? []
             for b in buckets {
                 let window = b["window"] as? String ?? ""
-                let rem = (b["remainingFraction"] as? NSNumber)?.doubleValue ?? 1.0
+                // A missing fraction is not "fully remaining". Saving that as 0% used
+                // makes the next real reading look like one giant prompt.
+                guard let rem = (b["remainingFraction"] as? NSNumber)?.doubleValue else { continue }
                 let used = max(0, min(100, (1.0 - rem) * 100.0))
                 let rTime = b["resetTime"] as? String ?? ""
                 let dTs = (iso.date(from: rTime) ?? isoFallback.date(from: rTime))?.timeIntervalSince1970
@@ -490,10 +492,18 @@ enum LiveServiceFetcher {
     }
 
     private static func readPrevTotal(in dir: URL) -> Double? {
+        readLastUsage(in: dir).total
+    }
+
+    private static func readLastUsage(in dir: URL) -> (total: Double?, recent: [[String: Any]]) {
         let url = dir.appendingPathComponent("last-usage.json")
         guard let data = try? Data(contentsOf: url),
-              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-        return (obj["totalPercent"] as? NSNumber)?.doubleValue
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return (nil, [])
+        }
+        let total = (obj["totalPercent"] as? NSNumber)?.doubleValue
+        let recent = obj["recentDeltas"] as? [[String: Any]] ?? []
+        return (total, recent)
     }
 
     private static func readClaudeSliceFromAGY() -> Double? {
@@ -512,6 +522,7 @@ enum LiveServiceFetcher {
         guard let data = try? Data(contentsOf: legacy),
               let list = try? JSONSerialization.jsonObject(with: data) as? [[String: Double]] else { return }
         let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
         df.dateFormat = "yyyy-MM-dd HH:mm:ss"
         let converted: [[String: Any]] = list.compactMap { d in
             guard let delta = d["delta"], let ts = d["timestamp"], delta > 0.005, abs(delta) < 30 else { return nil }
@@ -527,6 +538,7 @@ enum LiveServiceFetcher {
         try? out.write(to: dest, options: .atomic)
     }
 
+    /// Newest-first bubble list when a real prompt was recorded. Nil when nothing changed.
     private static func appendPositiveDelta(
         to deltasURL: URL,
         prevTotal: Double?,
@@ -536,9 +548,9 @@ enum LiveServiceFetcher {
         minStep: Double,
         maxStep: Double,
         cap: Int
-    ) {
-        guard let prev = prevTotal, newTotal > prev + minStep else { return }
-        let diff = newTotal - prev
+    ) -> [[String: Any]]? {
+        guard let prev = prevTotal, newTotal > prev + minStep else { return nil }
+        var diff = newTotal - prev
         // Large increases are real usage (widget was closed, or a heavy run).
         // Decreases are handled as resets in updateDailyUsage, not here.
         _ = maxStep
@@ -549,9 +561,24 @@ enum LiveServiceFetcher {
             list = existing
         }
         if list.contains(where: { abs((($0["timestamp"] as? NSNumber)?.doubleValue ?? 0) - nowTs) < 1.0 }) {
-            return
+            return nil
         }
+
+        if let lastLogged = latestLoggedTotal(in: list), lastLogged > 1, prev + 5 < lastLogged {
+            // The saved total was wiped (usually one bad 0% sample) and this reading
+            // is the same total we already counted. That is not a new prompt.
+            let backAtOldTotal = newTotal + 1 >= lastLogged
+            if backAtOldTotal && newTotal <= lastLogged + minStep {
+                return nil
+            }
+            if backAtOldTotal {
+                diff = newTotal - lastLogged
+                if diff <= minStep { return nil }
+            }
+        }
+
         let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
         df.dateFormat = "yyyy-MM-dd HH:mm:ss"
         var rec: [String: Any] = [
             "date": df.string(from: Date(timeIntervalSince1970: nowTs)),
@@ -565,12 +592,80 @@ enum LiveServiceFetcher {
         list = list.filter { (($0["timestamp"] as? NSNumber)?.doubleValue ?? 0) >= cutoff }
         let hardCap = max(cap, 4000)
         if list.count > hardCap { list = Array(list.suffix(hardCap)) }
-        if let sOut = try? JSONSerialization.data(withJSONObject: list, options: [.prettyPrinted]) {
+        if let sOut = try? JSONSerialization.data(withJSONObject: list) {
             try? sOut.write(to: deltasURL, options: .atomic)
+        }
+        return recentBubbles(from: list)
+    }
+
+    private static func latestLoggedTotal(in list: [[String: Any]]) -> Double? {
+        var bestTs = -Double.infinity
+        var best: Double?
+        for item in list {
+            let ts = (item["timestamp"] as? NSNumber)?.doubleValue ?? 0
+            let total = (item["weeklyTotal"] as? NSNumber)?.doubleValue ?? 0
+            if total > 0.5, ts >= bestTs {
+                bestTs = ts
+                best = total
+            }
+        }
+        return best
+    }
+
+    private static func recentBubbles(from list: [[String: Any]]) -> [[String: Any]] {
+        Array(list.suffix(4).reversed()).compactMap { item in
+            guard let d = (item["weeklyDelta"] as? NSNumber)?.doubleValue,
+                  let ts = (item["timestamp"] as? NSNumber)?.doubleValue,
+                  d > 0.005 else { return nil }
+            return ["delta": d, "timestamp": ts]
         }
     }
 
-    private static func updateDailyUsage(dir: URL, totalPercent: Double, nowTs: Double, resetsAt: Double?) {
+    private static let collapseLock = NSLock()
+    private static var pendingCollapseAt: [String: Double] = [:]
+
+    private enum IncomingSample {
+        case normal
+        case confirmedCollapse
+    }
+
+    /// Nil keeps the last good snapshot. One near-zero poll is not a reset.
+    private static func classifySample(
+        dir: URL,
+        prevTotal: Double?,
+        totalPercent: Double,
+        resetsAt: Double?,
+        nowTs: Double
+    ) -> IncomingSample? {
+        let prev = prevTotal ?? 0
+        let resetDate = resetsAt.map { Date(timeIntervalSince1970: $0) }
+        let todayKey = UsageParser.dayKey(for: Date(timeIntervalSince1970: nowTs))
+        let scheduled = UsageParser.isResetWeekday(todayKey, reset: resetDate)
+            || UsageParser.dropIsScheduledWeeklyReset(todayKey: todayKey, reset: resetDate)
+        let suspicious = prev > 5 && totalPercent < 1 && !scheduled
+        let key = dir.path
+        collapseLock.lock()
+        defer { collapseLock.unlock() }
+        if !suspicious {
+            pendingCollapseAt.removeValue(forKey: key)
+            return .normal
+        }
+        if let first = pendingCollapseAt[key], nowTs - first >= 5, nowTs - first <= 180 {
+            pendingCollapseAt.removeValue(forKey: key)
+            return .confirmedCollapse
+        }
+        pendingCollapseAt[key] = nowTs
+        return nil
+    }
+
+    @discardableResult
+    private static func updateDailyUsage(
+        dir: URL,
+        totalPercent: Double,
+        nowTs: Double,
+        resetsAt: Double?,
+        acceptCollapse: Bool
+    ) -> Bool {
         let dailyURL = dir.appendingPathComponent("daily-usage.json")
         var map: [String: [String: Double]] = [:]
         if let data = try? Data(contentsOf: dailyURL),
@@ -586,12 +681,8 @@ enum LiveServiceFetcher {
 
         let cal = Calendar.current
         let now = Date(timeIntervalSince1970: nowTs)
-        let fmt = DateFormatter()
-        fmt.calendar = cal
-        fmt.locale = Locale(identifier: "en_US_POSIX")
-        fmt.dateFormat = "yyyy-MM-dd"
-        let todayKey = fmt.string(from: now)
-        let yesterdayKey = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: now)).map { fmt.string(from: $0) }
+        let todayKey = UsageParser.dayKey(for: now)
+        let yesterdayKey = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: now)).map { UsageParser.dayKey(for: $0) }
 
         var entry = map[todayKey] ?? [:]
         let yesterdayClose = yesterdayKey.flatMap { map[$0]?["close"] }
@@ -603,13 +694,21 @@ enum LiveServiceFetcher {
         if let prevClose = entry["close"] ?? yesterdayClose, totalPercent + 5 < prevClose {
             let resetDate = resetsAt.map { Date(timeIntervalSince1970: $0) }
             let scheduled = UsageParser.isResetWeekday(todayKey, reset: resetDate)
+                || UsageParser.dropIsScheduledWeeklyReset(todayKey: todayKey, reset: resetDate)
+            let collapsed = totalPercent < 1 && prevClose > 5
+            if collapsed && !scheduled && !acceptCollapse {
+                return false
+            }
             if scheduled {
                 entry["accumulated"] = 0
+                if totalPercent + 15 < prevClose {
+                    entry["open"] = 0
+                }
             } else {
                 let drop = prevClose - totalPercent
                 entry["accumulated"] = (entry["accumulated"] ?? 0) + drop
+                entry["open"] = totalPercent
             }
-            entry["open"] = totalPercent
         }
 
         entry["close"] = totalPercent
@@ -621,6 +720,7 @@ enum LiveServiceFetcher {
         if let data = try? JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted]) {
             try? data.write(to: dailyURL, options: .atomic)
         }
+        return true
     }
 
     private static func writeServiceCache(
@@ -638,8 +738,16 @@ enum LiveServiceFetcher {
     ) {
         let lastUsageURL = dir.appendingPathComponent("last-usage.json")
         let deltasURL = dir.appendingPathComponent("session-deltas.json")
-        let prevTotal = prevTotalOverride ?? readPrevTotal(in: dir)
-        appendPositiveDelta(
+        let cached = readLastUsage(in: dir)
+        let prevTotal = prevTotalOverride ?? cached.total
+        guard let sample = classifySample(
+            dir: dir,
+            prevTotal: prevTotal,
+            totalPercent: totalPercent,
+            resetsAt: resetsAt,
+            nowTs: nowTs
+        ) else { return }
+        let recentDeltas = appendPositiveDelta(
             to: deltasURL,
             prevTotal: prevTotal,
             newTotal: totalPercent,
@@ -648,18 +756,15 @@ enum LiveServiceFetcher {
             minStep: minStep,
             maxStep: maxStep,
             cap: 4000
+        ) ?? cached.recent
+        let wroteDaily = updateDailyUsage(
+            dir: dir,
+            totalPercent: totalPercent,
+            nowTs: nowTs,
+            resetsAt: resetsAt,
+            acceptCollapse: sample == .confirmedCollapse
         )
-        updateDailyUsage(dir: dir, totalPercent: totalPercent, nowTs: nowTs, resetsAt: resetsAt)
-
-        var recentDeltas: [[String: Any]] = []
-        if let sData = try? Data(contentsOf: deltasURL),
-           let list = try? JSONSerialization.jsonObject(with: sData) as? [[String: Any]] {
-            recentDeltas = Array(list.reversed().prefix(4)).compactMap { item in
-                guard let d = (item["weeklyDelta"] as? NSNumber)?.doubleValue,
-                      let ts = (item["timestamp"] as? NSNumber)?.doubleValue else { return nil }
-                return ["delta": d, "timestamp": ts]
-            }
-        }
+        guard wroteDaily else { return }
 
         var dict: [String: Any] = [
             "planLabel": planLabel,
@@ -727,7 +832,7 @@ enum LiveServiceFetcher {
             try? dData.write(to: rawURL, options: .atomic)
         }
 
-        let total = parsed["usagePercent"] as? Double ?? 0.0
+        guard let total = parsed["usagePercent"] as? Double else { return }
         let products = parsed["productUsage"] as? [[String: Any]] ?? []
         var slices: [[String: Any]] = []
         for p in products {
@@ -801,7 +906,7 @@ enum LiveServiceFetcher {
         let rawURL = botDir.appendingPathComponent("last-raw.json")
         try? rawData.write(to: rawURL, options: .atomic)
 
-        let total = json["usagePercent"] as? Double ?? 0.0
+        guard let total = json["usagePercent"] as? Double else { return }
         let plan = (json["grokPlanLabel"] as? String) ?? (json["includedUsageSuperGrokPlan"] as? String) ?? "Grok Bot"
         let resetStr = json["nextResetTimestampUtc"] as? String
         let iso = ISO8601DateFormatter()
@@ -937,7 +1042,7 @@ enum LiveServiceFetcher {
         let primary = rate?["primary_window"] as? [String: Any]
         let secondary = rate?["secondary_window"] as? [String: Any]
         let five = chatGPTWindowUsed(primary)
-        let weekly = chatGPTWindowUsed(secondary) ?? five ?? 0
+        guard let weekly = chatGPTWindowUsed(secondary) ?? five else { return }
         let plan = (usage["plan_type"] as? String)?.capitalized ?? "ChatGPT"
         let nowTs = Date().timeIntervalSince1970
         writeServiceCache(
@@ -1128,11 +1233,14 @@ enum CreditsBinary {
         var period: [String: Any] = ["type": "weekly"]
         if let periodStart { period["start"] = periodStart }
         if let periodEnd { period["end"] = periodEnd }
-        return [
-            "usagePercent": usagePercent ?? 0,
+        var result: [String: Any] = [
             "currentPeriod": period,
             "productUsage": productUsage
         ]
+        if let usagePercent {
+            result["usagePercent"] = usagePercent
+        }
+        return result
     }
 
     private static func float32(_ buf: [UInt8], _ i: Int) -> Float {

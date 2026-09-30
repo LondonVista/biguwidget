@@ -17,8 +17,8 @@ extension YearCalendarView {
             )
             statTile(
                 title: "PEAK DAY",
-                value: data.peakBin != nil ? "\(data.peakBin!.dayLabel) \(data.peakBin!.dayNumber) (\(String(format: "+%.2f%%", data.peakBin!.delta)))" : "None",
-                subtext: data.peakBin != nil ? "\(data.peakBin!.promptCount) prompts on \(data.peakBin!.dayLabel) \(data.peakBin!.dayNumber)" : "No activity",
+                value: data.peakBin.map { "\($0.dayLabel) \($0.dayNumber) (\(String(format: "+%.2f%%", $0.delta)))" } ?? "None",
+                subtext: data.peakBin.map { "\($0.promptCount) prompts on \($0.dayLabel) \($0.dayNumber)" } ?? "No activity",
                 icon: "flame.fill",
                 accentColor: Color(hex: 0xFF5722)
             )
@@ -294,10 +294,10 @@ extension YearCalendarView {
         }()
 
         return dayOrRangePromptsList(
-            title: activeBin != nil ? activeBin!.fullDateLabel.uppercased() : "MONTH PROMPT TIMELINE (\(promptsToShow.count))",
+            title: activeBin.map { $0.fullDateLabel.uppercased() } ?? "MONTH PROMPT TIMELINE (\(promptsToShow.count))",
             prompts: promptsToShow,
             isFiltered: activeBin != nil,
-            emptyMessage: activeBin != nil ? "No prompt records for \(activeBin!.dayLabel) \(activeBin!.dayNumber)" : "No prompt activity this month",
+            emptyMessage: activeBin.map { "No prompt records for \($0.dayLabel) \($0.dayNumber)" } ?? "No prompt activity this month",
             onClearFilter: {
                 selectedDayKey = nil
             }
@@ -521,8 +521,8 @@ extension YearCalendarView {
             )
             statTile(
                 title: "PEAK BURST",
-                value: peakSession != nil ? String(format: "+%.2f%%", peakSession!.totalDelta) : "0.00%",
-                subtext: peakSession != nil ? "\(peakSession!.durationFormatted) • \(peakSession!.records.count) prompts" : "No bursts",
+                value: peakSession.map { String(format: "+%.2f%%", $0.totalDelta) } ?? "0.00%",
+                subtext: peakSession.map { "\($0.durationFormatted) • \($0.records.count) prompts" } ?? "No bursts",
                 icon: "flame.fill",
                 accentColor: Color(hex: 0xFF5722)
             )
@@ -1211,7 +1211,8 @@ extension YearCalendarView {
             return AnyView(EmptyView())
         }
         let monthSum = subStore.sumUsed(from: interval.start, to: interval.end)
-        let name = DateFormatter().monthSymbols[month - 1]
+        let symbols = DateFormatter().monthSymbols ?? []
+        let name = symbols.indices.contains(month - 1) ? symbols[month - 1] : "Month \(month)"
         let fmt = DateFormatter()
         fmt.calendar = cal
         fmt.locale = Locale(identifier: "en_US_POSIX")
@@ -1230,12 +1231,14 @@ extension YearCalendarView {
         }()
         let resetAt = snap?.resetsAt
         let todayUsed = subStore.usedPercent(on: todayKey)
-        let status = snap != nil ? UsageParser.calculateDailyStatus(
-            totalPercent: snap!.totalPercent,
-            todayUsed: todayUsed,
-            resetsAt: snap!.resetsAt,
-            now: wallNow
-        ) : nil
+        let status = snap.map {
+            UsageParser.calculateDailyStatus(
+                totalPercent: $0.totalPercent,
+                todayUsed: todayUsed,
+                resetsAt: $0.resetsAt,
+                now: wallNow
+            )
+        }
 
         let weekStillActive: Bool = {
             guard let r = resetAt else { return true }
@@ -1280,11 +1283,9 @@ extension YearCalendarView {
                                 let gain = subStore.effectiveAccumulated(on: key, resetsAt: resetAt)
                                 let hasBonus = weekStillActive && gain >= 0.5
                                 let gainInt = Int(gain.rounded())
-                                let isWithinCycle: Bool = {
-                                    if let r = resetAt { return date <= r }
-                                    return true
-                                }()
-                                let projected = (isWithinCycle && isFuture) ? status?.futureDailyBudget : nil
+                                let isAfterReset = UsageParser.dayStartsAfterReset(key, reset: resetAt)
+                                let isOnOrAfterResetDay = UsageParser.dayIsOnOrAfterResetDay(key, reset: resetAt)
+                                let projected = (isFuture && !isOnOrAfterResetDay) ? status?.futureDailyBudget : nil
 
                                 dayCell(
                                     dayNum: dayNum,
@@ -1292,6 +1293,8 @@ extension YearCalendarView {
                                     isToday: isToday,
                                     isReset: isReset,
                                     isFuture: isFuture,
+                                    isAfterReset: isAfterReset,
+                                    isOnOrAfterResetDay: isOnOrAfterResetDay,
                                     hasBonus: hasBonus,
                                     gainInt: gainInt,
                                     projectedBudget: projected
@@ -1314,18 +1317,24 @@ extension YearCalendarView {
         isToday: Bool,
         isReset: Bool,
         isFuture: Bool,
+        isAfterReset: Bool,
+        isOnOrAfterResetDay: Bool,
         hasBonus: Bool,
         gainInt: Int,
         projectedBudget: Double?
     ) -> some View {
         let p = subStore.usedPercent(on: key)
         let showProjected = WidgetLayoutSettings.shared.showProjectedFutureDays
-        let isProjected = isFuture && showProjected && (projectedBudget ?? 0) > 0
+        let isNextWindow = isFuture && isOnOrAfterResetDay && showProjected
+        let isProjected = isFuture && !isOnOrAfterResetDay && showProjected && (projectedBudget ?? 0) > 0
         let resetGreen = Color(hex: 0x32D74B)
         let projGreen = Color(hex: 0x32D74B).opacity(0.65)
         let gold = Color(hex: 0xFFD700)
 
         let displayPercent: String = {
+            if isNextWindow {
+                return "\(Int(UsageParser.evenDailyShare.rounded()))%"
+            }
             if isProjected, let budget = projectedBudget {
                 return "\(Int(budget.rounded()))%"
             }
@@ -1340,7 +1349,7 @@ extension YearCalendarView {
 
         let fgColor: Color = {
             if hasBonus { return gold }
-            if isProjected { return projGreen }
+            if isProjected || isNextWindow || isAfterReset { return projGreen }
             return isToday ? Color.white.opacity(0.86) : Color.white.opacity(p > 0 ? 0.65 : 0.35)
         }()
 
@@ -1384,7 +1393,9 @@ extension YearCalendarView {
         )
         .help(
             hasBonus ? "Intra-week reset: +\(gainInt)% quota gained" : (
-                isProjected ? "Projected daily budget: \(displayPercent)" : "Usage on \(key): \(displayPercent)"
+                isNextWindow ? "Next window, normal daily share: \(displayPercent)" : (
+                    isProjected ? "Projected daily budget: \(displayPercent)" : "Usage on \(key): \(displayPercent)"
+                )
             )
         )
     }
@@ -1416,12 +1427,12 @@ extension YearCalendarView {
         var rows: [(id: Int, label: String, used: Double)] = []
         var cursor = iso.dateInterval(of: .weekOfYear, for: jan1)?.start ?? jan1
         var i = 0
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
         while cursor <= dec31 {
             let end = iso.date(byAdding: .day, value: 7, to: cursor) ?? cursor
             let used = subStore.sumUsed(from: cursor, to: end)
             let weekNo = iso.component(.weekOfYear, from: cursor.addingTimeInterval(3 * 86400))
-            let f = DateFormatter()
-            f.dateFormat = "MMM d"
             let label = "W\(weekNo)  \(f.string(from: cursor))–\(f.string(from: end.addingTimeInterval(-86400)))"
             rows.append((i, label, used))
             cursor = end

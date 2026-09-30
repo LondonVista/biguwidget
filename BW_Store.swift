@@ -132,8 +132,7 @@ final class SingleServiceStore: ObservableObject {
     }
 
     private func loadLegacyClaudeDeltas() -> [RecentDeltaItem] {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let url = appSupport.appendingPathComponent("AGYusageWidget/claude-deltas.json")
+        let url = directoryURL.appendingPathComponent("claude-deltas.json")
         guard let data = try? Data(contentsOf: url),
               let list = try? JSONSerialization.jsonObject(with: data) as? [[String: Double]] else { return [] }
         return Array(list.compactMap { d -> RecentDeltaItem? in
@@ -142,17 +141,17 @@ final class SingleServiceStore: ObservableObject {
         }.prefix(4))
     }
 
+    private func yesterdayClose(before key: String) -> Double? {
+        guard let day = UsageParser.dayKeyDate(key),
+              let prev = Calendar.current.date(byAdding: .day, value: -1, to: day) else { return nil }
+        return dailyMap[UsageParser.dayKey(for: prev)]?["close"]
+    }
+
     func usedPercent(on key: String) -> Double {
         let e = dailyMap[key] ?? [:]
         guard let open = e["open"], var close = e["close"] else { return 0.0 }
 
-        let cal = Calendar.current
-        let now = Date()
-        let todayKey = String(format: "%04d-%02d-%02d",
-            cal.component(.year, from: now),
-            cal.component(.month, from: now),
-            cal.component(.day, from: now))
-        if key == todayKey, case .ready(let snap) = state {
+        if key == UsageParser.dayKey(for: Date()), case .ready(let snap) = state {
             close = snap.totalPercent
         }
 
@@ -161,28 +160,29 @@ final class SingleServiceStore: ObservableObject {
             return nil
         }()
         let bonus = effectiveAccumulated(on: key, resetsAt: resetsAt)
+        let prevClose = yesterdayClose(before: key)
+        let resetDay = UsageParser.isResetWeekday(key, reset: resetsAt)
 
-        // Midnight artifact: open stamped 0 before the weekly reset. Do not borrow
-        // yesterday's close when this day is a real reset (weekly reset or intra-week reset to ~0).
         var effectiveOpen = open
-        if effectiveOpen == 0 && bonus < 0.5 && !UsageParser.isResetWeekday(key, reset: resetsAt) {
-            let fmt = DateFormatter()
-            fmt.locale = Locale(identifier: "en_US_POSIX")
-            fmt.dateFormat = "yyyy-MM-dd"
-            if let d = fmt.date(from: key),
-               let prevD = Calendar.current.date(byAdding: .day, value: -1, to: d) {
-                let prevKey = fmt.string(from: prevD)
-                if let prevEntry = dailyMap[prevKey], let prevClose = prevEntry["close"], prevClose > 0, close >= prevClose {
-                    effectiveOpen = prevClose
-                }
+        // A one-sample 0% reading used to freeze open at 0, so the strip showed the
+        // whole weekly total. Borrow yesterday when the close never really left it.
+        // A reset weekday that landed well below yesterday keeps open at 0.
+        if effectiveOpen < 0.5, bonus < 0.5, let prevClose, prevClose > 0, close + 15 >= prevClose {
+            let keptGoing = !resetDay || close + 0.5 >= prevClose
+            if keptGoing {
+                effectiveOpen = min(prevClose, close)
             }
+        }
+        // First post-reset sample was stored as both open and close, so the day showed 0.
+        if resetDay, open > 0.5, abs(open - close) < 1, let prevClose, prevClose > close + 15 {
+            effectiveOpen = 0
         }
 
         return max(0, close - effectiveOpen)
     }
 
-    /// Intra-week extra pool only. Scheduled weekly reset and the old
-    /// "copy yesterday's close as gain" bug are not bonus quota.
+    /// Intra-week extra pool only. A scheduled weekly reset, a day that closed
+    /// empty, and the old "copy yesterday's close as gain" bug are not bonus quota.
     func effectiveAccumulated(on key: String, resetsAt: Date?) -> Double {
         let entry = dailyMap[key] ?? [:]
         let acc = entry["accumulated"] ?? 0
@@ -191,16 +191,10 @@ final class SingleServiceStore: ObservableObject {
 
         let open = entry["open"] ?? 0
         let close = entry["close"] ?? 0
-        let fmt = DateFormatter()
-        fmt.locale = Locale(identifier: "en_US_POSIX")
-        fmt.dateFormat = "yyyy-MM-dd"
-        if let d = fmt.date(from: key),
-           let prevD = Calendar.current.date(byAdding: .day, value: -1, to: d) {
-            let prevKey = fmt.string(from: prevD)
-            if let prevClose = dailyMap[prevKey]?["close"],
-               abs(acc - prevClose) < 1.5, close > 10, open < 0.5 {
-                return 0
-            }
+        if close < 0.5 { return 0 }
+        if let prevClose = yesterdayClose(before: key),
+           abs(acc - prevClose) < 1.5, open < 0.5 {
+            return 0
         }
         return acc
     }
@@ -270,6 +264,7 @@ final class SingleServiceStore: ObservableObject {
         let fmt = DateFormatter()
         fmt.calendar = cal
         fmt.locale = Locale(identifier: "en_US_POSIX")
+        fmt.timeZone = cal.timeZone
         fmt.dateFormat = "yyyy-MM-dd"
 
         var gain = 0.0
@@ -280,14 +275,15 @@ final class SingleServiceStore: ObservableObject {
             }
         }
 
+        // This calendar week already includes its own days. Only pull bonus from
+        // the part of the quota cycle that started before Monday.
         if gain < 0.1, let reset = resetsAt {
-            let cycleStart = cal.date(byAdding: .day, value: -7, to: reset) ?? cal.date(byAdding: .day, value: -7, to: today)!
+            let cycleStart = cal.date(byAdding: .day, value: -7, to: reset) ?? today.addingTimeInterval(-7 * 86400)
             var cur = cal.startOfDay(for: cycleStart)
-            let endDay = cal.startOfDay(for: now)
-            while cur <= endDay {
-                let key = fmt.string(from: cur)
-                gain += effectiveAccumulated(on: key, resetsAt: resetsAt)
-                cur = cal.date(byAdding: .day, value: 1, to: cur) ?? endDay.addingTimeInterval(86400)
+            while cur < monday {
+                gain += effectiveAccumulated(on: fmt.string(from: cur), resetsAt: resetsAt)
+                guard let next = cal.date(byAdding: .day, value: 1, to: cur) else { break }
+                cur = next
             }
         }
 
@@ -352,24 +348,28 @@ final class SingleServiceStore: ObservableObject {
                 return QuotaResetRecord(timestamp: ts, dateStr: dateStr, displayTitle: title, gainedPercent: gain, type: type, note: note)
             }
         }
-        // Auto-ingest any recorded accumulated gains from dailyMap
+        // Only a drop that still counts as extra quota. A weekly reset observed
+        // the next morning used to be stored here, labeled as an Antigravity reset.
+        let resetAt: Date? = {
+            if case .ready(let snap) = state { return snap.resetsAt }
+            return nil
+        }()
         let fmt = DateFormatter()
         fmt.locale = Locale(identifier: "en_US_POSIX")
         fmt.dateFormat = "yyyy-MM-dd"
-        for (dayKey, entry) in dailyMap {
-            if let acc = entry["accumulated"], acc > 0 {
-                if !records.contains(where: { $0.dateStr == dayKey }) {
-                    let ts = (fmt.date(from: dayKey)?.timeIntervalSince1970) ?? Date().timeIntervalSince1970
-                    let autoRec = QuotaResetRecord(
-                        timestamp: ts,
-                        dateStr: dayKey,
-                        displayTitle: "Intra-Week Reset",
-                        gainedPercent: acc,
-                        type: "intraweek",
-                        note: "Google Antigravity manual reset detected (+ \(Int(acc.rounded()))% quota gained)"
-                    )
-                    records.append(autoRec)
-                }
+        for dayKey in dailyMap.keys {
+            let gain = effectiveAccumulated(on: dayKey, resetsAt: resetAt)
+            if gain >= 0.5, !records.contains(where: { $0.dateStr == dayKey }) {
+                let ts = (fmt.date(from: dayKey)?.timeIntervalSince1970) ?? Date().timeIntervalSince1970
+                let autoRec = QuotaResetRecord(
+                    timestamp: ts,
+                    dateStr: dayKey,
+                    displayTitle: "Intra-Week Reset",
+                    gainedPercent: gain,
+                    type: "intraweek",
+                    note: "\(service.displayName) quota dropped. \(Int(gain.rounded()))% was counted as an extra reset."
+                )
+                records.append(autoRec)
             }
         }
         records.sort { $0.timestamp > $1.timestamp }
@@ -423,8 +423,7 @@ final class SingleServiceStore: ObservableObject {
         let extraURL: URL = {
             if service == .agy { return geminiSessionDeltasURL }
             if service == .claudeGPT {
-                return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-                    .appendingPathComponent("AGYusageWidget/claude-deltas.json")
+                return directoryURL.appendingPathComponent("claude-deltas.json")
             }
             return deltasURL
         }()
@@ -443,6 +442,7 @@ final class SingleServiceStore: ObservableObject {
         }
         if service == .claudeGPT && records.isEmpty {
             let df = DateFormatter()
+            df.locale = Locale(identifier: "en_US_POSIX")
             df.dateFormat = "yyyy-MM-dd HH:mm:ss"
             for item in loadLegacyClaudeDeltas() {
                 records.append(SessionDeltaRecord(
@@ -454,11 +454,28 @@ final class SingleServiceStore: ObservableObject {
                 ))
             }
         }
+        records = Self.withoutPhantomDeltas(records)
         records.sort { $0.timestamp < $1.timestamp }
         cachedSessionDeltas = records.reversed()
         sessionCacheValid = true
         sessionCacheStamp = stamp
         return cachedSessionDeltas
+    }
+
+    /// A prompt whose size is the whole total, and that total was already logged, is a wiped baseline.
+    private static func withoutPhantomDeltas(_ records: [SessionDeltaRecord]) -> [SessionDeltaRecord] {
+        let ordered = records.sorted { $0.timestamp < $1.timestamp }
+        var kept: [SessionDeltaRecord] = []
+        var lastTotal = 0.0
+        for rec in ordered {
+            let phantom = rec.weeklyTotal > 1
+                && abs(rec.weeklyDelta - rec.weeklyTotal) < 0.05
+                && abs(lastTotal - rec.weeklyTotal) < 0.05
+            if phantom { continue }
+            kept.append(rec)
+            if rec.weeklyTotal > 0.5 { lastTotal = rec.weeklyTotal }
+        }
+        return kept
     }
 
     private func loadRecentDeltasFromDisk() -> [RecentDeltaItem] {
@@ -502,19 +519,23 @@ final class SingleServiceStore: ObservableObject {
             applyQuotaGroup(claude, total: &total, resetsAt: &rDate, fiveUsed: &fiveUsed, fiveReset: &fiveReset, slices: &slices, sliceName: "Claude & GPT")
         }
 
-        var recentDeltas = loadRecentDeltasFromDisk()
+        var recentDeltas: [RecentDeltaItem] = []
+        if let rawDeltaList = d["recentDeltas"] as? [[String: Any]] {
+            recentDeltas = rawDeltaList.compactMap { item in
+                guard let delta = (item["delta"] as? NSNumber)?.doubleValue,
+                      let ts = (item["timestamp"] as? NSNumber)?.doubleValue,
+                      delta > 0.005 else { return nil }
+                return RecentDeltaItem(delta: delta, timestamp: ts)
+            }
+        }
+        if recentDeltas.isEmpty {
+            recentDeltas = loadRecentDeltasFromDisk()
+        }
         if recentDeltas.isEmpty && service == .agy {
             recentDeltas = loadGeminiDeltas()
         }
         if recentDeltas.isEmpty && service == .claudeGPT {
             recentDeltas = loadLegacyClaudeDeltas()
-        }
-        if recentDeltas.isEmpty, let rawDeltaList = d["recentDeltas"] as? [[String: Any]] {
-            recentDeltas = rawDeltaList.compactMap { item in
-                guard let delta = (item["delta"] as? NSNumber)?.doubleValue,
-                      let ts = (item["timestamp"] as? NSNumber)?.doubleValue else { return nil }
-                return RecentDeltaItem(delta: delta, timestamp: ts)
-            }
         }
 
         return UsageSnapshot(
@@ -557,7 +578,7 @@ final class SingleServiceStore: ObservableObject {
         let isoFallback = ISO8601DateFormatter()
         for b in buckets {
             let window = b["window"] as? String ?? ""
-            let rem = (b["remainingFraction"] as? NSNumber)?.doubleValue ?? 1.0
+            guard let rem = (b["remainingFraction"] as? NSNumber)?.doubleValue else { continue }
             let used = max(0, min(100, (1.0 - rem) * 100.0))
             let rTime = b["resetTime"] as? String ?? ""
             let resetDate = iso.date(from: rTime) ?? isoFallback.date(from: rTime)

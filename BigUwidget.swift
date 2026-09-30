@@ -7,8 +7,8 @@ import WebKit
 enum BigUwidgetConfig {
     /// Ko-fi / GitHub Sponsors / PayPal. Donate is hidden if this is nil.
     static let donateURL = URL(string: "https://ko-fi.com/london_vista")
-    static let feedbackURL = URL(string: "https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v1.2.3&body=%2A%2AOS%2A%2A%3A+macOS%0A%2A%2AVersion%2A%2A%3A+v1.2.3%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A")
-    static let appVersion = "1.2.3"
+    static let feedbackURL = URL(string: "https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v1.2.4&body=%2A%2AOS%2A%2A%3A+macOS%0A%2A%2AVersion%2A%2A%3A+v1.2.4%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A")
+    static let appVersion = "1.2.4"
     static let updateFeedURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest/download/latest.json")
     static let githubReleasesURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest")
     static let githubAPIURL = URL(string: "https://api.github.com/repos/LondonVista/biguwidget/releases/latest")
@@ -33,6 +33,7 @@ private func biguVersionCompare(_ a: String, _ b: String) -> ComparisonResult {
     return .orderedSame
 }
 
+@MainActor
 final class UpdateChecker {
     static let shared = UpdateChecker()
     private init() {}
@@ -40,8 +41,9 @@ final class UpdateChecker {
     private var promptedFor: String?
 
     func checkSoon() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
-            self?.checkNow()
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            self.checkNow()
         }
     }
 
@@ -50,18 +52,16 @@ final class UpdateChecker {
         guard policy != .off else { return }
         guard !checking else { return }
         checking = true
-        Task.detached { [weak self] in
+        Task {
             let info = await Self.fetchLatest()
-            await MainActor.run {
-                self?.checking = false
-                guard let info else { return }
-                let current = BigUwidgetConfig.appVersion
-                guard biguVersionCompare(info.version, current) == .orderedDescending else { return }
-                if policy == .auto {
-                    self?.install(info)
-                } else {
-                    self?.prompt(info)
-                }
+            self.checking = false
+            guard let info else { return }
+            let current = BigUwidgetConfig.appVersion
+            guard biguVersionCompare(info.version, current) == .orderedDescending else { return }
+            if policy == .auto {
+                self.install(info)
+            } else {
+                self.prompt(info)
             }
         }
     }
@@ -416,6 +416,9 @@ enum UsageParser {
     }
 
     static func remainingParts(until date: Date, now: Date = Date()) -> (days: String?, rest: String) {
+        if date <= now {
+            return (nil, "now")
+        }
         let totalMinutes = max(0, Int(date.timeIntervalSince(now) / 60))
         let days = totalMinutes / (24 * 60)
         let hours = (totalMinutes % (24 * 60)) / 60
@@ -434,6 +437,18 @@ enum UsageParser {
         if hours <= 24 { return Color(hex: 0x32D74B) } // Near reset (< 24h) -> Vibrant Green
         if hours <= 48 { return Color(hex: 0xFFD60A) } // Moderate (24h - 48h) -> Gold / Yellow
         return Color(hex: 0xFF9F0A)                    // Far away (> 48h) -> Orange
+    }
+
+    /// 5h pool left: 100% remaining is green, 0% remaining is orange.
+    static func fiveHourFillColor(usedPercent: Double) -> Color {
+        let remaining = max(0, min(100, 100 - usedPercent))
+        let t = remaining / 100
+        let oR = 255.0, oG = 159.0, oB = 10.0
+        let gR = 50.0, gG = 215.0, gB = 75.0
+        let r = (oR + (gR - oR) * t) / 255
+        let g = (oG + (gG - oG) * t) / 255
+        let b = (oB + (gB - oB) * t) / 255
+        return Color(.sRGB, red: r, green: g, blue: b, opacity: 1)
     }
 
     static func fiveHourCountdownColor(until date: Date, now: Date = Date()) -> Color {
@@ -468,13 +483,55 @@ enum UsageParser {
     }
 
     static func isResetWeekday(_ key: String, reset: Date?) -> Bool {
-        guard let reset else { return false }
+        guard let reset, let day = dayKeyDate(key) else { return false }
+        let cal = Calendar.current
+        return cal.component(.weekday, from: day) == cal.component(.weekday, from: reset)
+    }
+
+    /// A drop seen on the weekly reset day, or the morning after if that refresh was missed.
+    static func dropIsScheduledWeeklyReset(todayKey: String, reset: Date?) -> Bool {
+        guard let reset, let today = dayKeyDate(todayKey) else { return false }
+        let cal = Calendar.current
+        let nextResetDay = cal.startOfDay(for: reset)
+        guard let occurred = cal.date(byAdding: .day, value: -7, to: nextResetDay) else { return false }
+        let todayStart = cal.startOfDay(for: today)
+        let occurredStart = cal.startOfDay(for: occurred)
+        if todayStart == occurredStart { return true }
+        if let morningAfter = cal.date(byAdding: .day, value: 1, to: occurredStart), todayStart == morningAfter {
+            return true
+        }
+        return false
+    }
+
+    static func dayKey(for date: Date) -> String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
+        f.calendar = Calendar.current
+        f.timeZone = Calendar.current.timeZone
         f.dateFormat = "yyyy-MM-dd"
-        guard let day = f.date(from: key) else { return false }
-        return Calendar.current.component(.weekday, from: day)
-            == Calendar.current.component(.weekday, from: reset)
+        return f.string(from: date)
+    }
+
+    static func dayKeyDate(_ key: String) -> Date? {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.calendar = Calendar.current
+        f.timeZone = Calendar.current.timeZone
+        f.dateFormat = "yyyy-MM-dd"
+        return f.date(from: key)
+    }
+
+    /// The calendar day starts at or after the quota reset instant.
+    static func dayStartsAfterReset(_ key: String, reset: Date?) -> Bool {
+        guard let reset, let day = dayKeyDate(key) else { return false }
+        return day >= reset
+    }
+
+    /// Reset calendar day or later. That whole day belongs to the next window,
+    /// including the hours before the reset instant.
+    static func dayIsOnOrAfterResetDay(_ key: String, reset: Date?) -> Bool {
+        guard let reset, let day = dayKeyDate(key) else { return false }
+        return day >= Calendar.current.startOfDay(for: reset)
     }
 
     static let evenDailyShare = 100.0 / 7.0

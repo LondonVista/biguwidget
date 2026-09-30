@@ -512,7 +512,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 self?.calendarPanel = nil
                 self?.settingsPanel?.orderOut(nil)
                 self?.settingsPanel = nil
-                self?.panel.miniaturize(nil)
+                NSApp.hide(nil)
             },
             onOpenSettings: { [weak self] in
                 self?.openSettingsWindow()
@@ -572,6 +572,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             name: NSWindow.didMoveNotification,
             object: panel
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(screenParametersChanged),
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
 
         // Initial sync of undocked floating windows
         syncUndockedWindows()
@@ -588,7 +594,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
 
-        // Global Command shortcuts for widget scaling (⌘+, ⌘-, ⌘0)
+        // Global keyboard shortcuts (⌘+, ⌘-, ⌘0 for scaling, ⌘W and Esc to close open popups)
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
             if event.modifierFlags.contains(.command) {
@@ -607,6 +613,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     withAnimation(.easeInOut(duration: 0.15)) {
                         self.settings.setGlobalScale(1.0)
                     }
+                    return nil
+                } else if chars == "w" || chars == "W" {
+                    if let cal = self.calendarPanel, cal.isVisible {
+                        cal.orderOut(nil)
+                        self.calendarPanel = nil
+                        return nil
+                    }
+                    if let set = self.settingsPanel, set.isVisible {
+                        set.orderOut(nil)
+                        self.settingsPanel = nil
+                        self.syncUndockedWindows()
+                        return nil
+                    }
+                }
+            }
+            if event.keyCode == 53 { // Escape
+                if let cal = self.calendarPanel, cal.isVisible {
+                    cal.orderOut(nil)
+                    self.calendarPanel = nil
+                    return nil
+                }
+                if let set = self.settingsPanel, set.isVisible {
+                    set.orderOut(nil)
+                    self.settingsPanel = nil
+                    self.syncUndockedWindows()
                     return nil
                 }
             }
@@ -777,7 +808,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        NSApp.unhide(nil)
         panel?.orderFrontRegardless()
+        for (_, win) in undockedPanels {
+            win.orderFrontRegardless()
+        }
         return true
     }
 
@@ -855,7 +890,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     @objc func showFromDock() {
+        NSApp.unhide(nil)
         panel?.orderFrontRegardless()
+        for (_, win) in undockedPanels {
+            win.orderFrontRegardless()
+        }
     }
 
     @objc func refreshFromDock() {
@@ -874,6 +913,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     @objc func windowMoved() {
         persistFrame()
+    }
+
+    @objc func screenParametersChanged() {
+        guard let panel = panel else { return }
+        let clamped = clampedOrigin(panel.frame.origin, size: panel.frame.size)
+        if clamped != panel.frame.origin {
+            panel.setFrameOrigin(clamped)
+            persistFrame()
+        }
+        for (card, win) in undockedPanels {
+            let winClamped = clampedOrigin(win.frame.origin, size: win.frame.size)
+            if winClamped != win.frame.origin {
+                win.setFrameOrigin(winClamped)
+                persistUndockedFrame(for: card, panel: win)
+            }
+        }
     }
 
     private func persistFrame() {

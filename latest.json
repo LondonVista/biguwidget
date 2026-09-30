@@ -1,9 +1,9 @@
 {
-  "version": "1.2.3",
-  "notes": "BigUwidget 1.2.3: Accurate future days projected daily budget calculation dividing remaining quota pool across upcoming days.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.3",
+  "version": "1.2.4",
+  "notes": "BigUwidget 1.2.4: Day strips show that day's own rise, the reset morning shows the normal 14% share, a single 0% reading is ignored, and a day that closes empty is not counted as bonus quota.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.4",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.3/BigUwidget-1.2.3-Mac.zip",
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.4/BigUwidget-1.2.4-Mac.zip",
     "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.3/BigUwidget-1.2.3-Linux.zip",
     "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.3/BigUwidget-1.2.3-Windows.zip"
   }

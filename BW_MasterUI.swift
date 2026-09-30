@@ -375,6 +375,8 @@ struct WeekStripView: View {
                     isToday: isToday,
                     isFuture: day.key > todayKey,
                     isReset: isReset,
+                    isAfterReset: UsageParser.dayStartsAfterReset(day.key, reset: resetAt),
+                    isOnOrAfterResetDay: UsageParser.dayIsOnOrAfterResetDay(day.key, reset: resetAt),
                     weekStillActive: weekStillActive,
                     projectedBudget: projectedDailyBudget,
                     showProjected: showProjectedFutureDays
@@ -396,6 +398,8 @@ struct WeekDayPillView: View {
     let isToday: Bool
     let isFuture: Bool
     let isReset: Bool
+    let isAfterReset: Bool
+    let isOnOrAfterResetDay: Bool
     let weekStillActive: Bool
     let projectedBudget: Double?
     let showProjected: Bool
@@ -409,10 +413,18 @@ struct WeekDayPillView: View {
     }
 
     private var isProjected: Bool {
-        isFuture && showProjected && (projectedBudget ?? 0) > 0
+        isFuture && !isOnOrAfterResetDay && showProjected && (projectedBudget ?? 0) > 0
+    }
+
+    /// Next quota window, from the reset's calendar day: one seventh of a fresh week, about 14% a day.
+    private var isNextWindow: Bool {
+        isFuture && isOnOrAfterResetDay && showProjected
     }
 
     private var displayPercent: String {
+        if isNextWindow {
+            return "\(Int(UsageParser.evenDailyShare.rounded()))%"
+        }
         if isProjected, let budget = projectedBudget {
             return "\(Int(budget.rounded()))%"
         }
@@ -484,7 +496,7 @@ struct WeekDayPillView: View {
     private var percentView: some View {
         let fgColor: Color = {
             if hasBonus { return gold }
-            if isProjected { return projGreen }
+            if isProjected || isNextWindow || isAfterReset { return projGreen }
             return isToday ? Color.white.opacity(0.86) : Color.white.opacity(0.62)
         }()
         return Text(displayPercent)
@@ -497,6 +509,7 @@ struct WeekDayPillView: View {
 
     private var helpText: String {
         if hasBonus { return "Intra-week reset: +\(gainInt)% quota gained" }
+        if isNextWindow { return "Next window, normal daily share: \(displayPercent)" }
         if isProjected { return "Projected daily budget: \(displayPercent)" }
         return "Click to view usage calendar"
     }
@@ -590,6 +603,9 @@ struct ServiceCardView: View {
     var onSignIn: (() -> Void)? = nil
 
     @State private var isWeekHidden: Bool = false
+    @State private var fiveBlip: Double = 0
+    @State private var fiveBlipGreen: Bool = false
+    @State private var lastFivePct: Double?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -779,7 +795,7 @@ struct ServiceCardView: View {
                                     let accent = UsageParser.resetCountdownColor(until: reset, now: now)
                                     let muted = Color.white.opacity(0.62)
                                     HStack(alignment: .firstTextBaseline, spacing: 3) {
-                                        Text("Resets in")
+                                        Text(parts.rest == "now" ? "Resets" : "Resets in")
                                             .font(.system(size: 9.5, weight: .semibold))
                                             .foregroundStyle(muted)
                                         if let days = parts.days {
@@ -836,15 +852,27 @@ struct ServiceCardView: View {
 
                         if showsFive, let fivePct = snap.fiveHourPercent {
                             let fiveScale: CGFloat = isWeekHidden ? 1.15 : 1.35
+                            let fiveNum = "\(Int(fivePct.rounded()))%"
                             HStack(spacing: 3.5) {
-                                Text("5h: \(Int(fivePct.rounded()))% used")
-                                    .font(.system(size: 10.0 * fiveScale, weight: .bold, design: .rounded))
-                                    .foregroundStyle(Color.white.opacity(0.95))
-                                    .monospacedDigit()
+                                HStack(spacing: 3) {
+                                    Text("5h:")
+                                        .foregroundStyle(Color.white.opacity(0.95))
+                                    Text(fiveNum)
+                                        .foregroundStyle(UsageParser.fiveHourFillColor(usedPercent: fivePct))
+                                        .overlay {
+                                            Text(fiveNum)
+                                                .foregroundStyle(Color(hex: fiveBlipGreen ? 0xC8FFD4 : 0xFFD60A))
+                                                .opacity(fiveBlip)
+                                        }
+                                    Text("used")
+                                        .foregroundStyle(Color.white.opacity(0.95))
+                                }
+                                .font(.system(size: 10.0 * fiveScale, weight: .bold, design: .rounded))
+                                .monospacedDigit()
                                 if let fiveReset = snap.fiveHourResetsAt {
                                     let fParts = UsageParser.remainingParts(until: fiveReset, now: now)
                                     let fAccent = UsageParser.fiveHourCountdownColor(until: fiveReset, now: now)
-                                    Text("· reset in")
+                                    Text(fParts.rest == "now" ? "·" : "· reset in")
                                         .font(.system(size: 9.5 * fiveScale, weight: .medium))
                                         .foregroundStyle(Color.white.opacity(0.60))
                                     Text(fParts.rest)
@@ -858,6 +886,20 @@ struct ServiceCardView: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.70)
                             .padding(.vertical, 2.5)
+                            .onAppear { if lastFivePct == nil { lastFivePct = fivePct } }
+                            .onChange(of: fivePct) { newValue in
+                                if let last = lastFivePct, newValue + 0.05 < last {
+                                    // Full refresh (used back near 0, 100% left) flashes a lighter green. Any smaller drop flashes gold.
+                                    fiveBlipGreen = newValue <= 2
+                                    fiveBlip = 1
+                                    DispatchQueue.main.async {
+                                        withAnimation(.easeOut(duration: 1.2)) {
+                                            fiveBlip = 0
+                                        }
+                                    }
+                                }
+                                lastFivePct = newValue
+                            }
                         }
 
                         if !isWeekHidden {

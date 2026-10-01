@@ -721,6 +721,10 @@ extension YearCalendarView {
             return "Gemini Pro/Flash"
         } else if serviceName == "Grok Bot" {
             return "Grok 3 (Bot)"
+        } else if serviceName == "Claude" {
+            return "Claude"
+        } else if serviceName == "ChatGPT" {
+            return "ChatGPT"
         } else {
             return "Grok 3"
         }
@@ -731,6 +735,10 @@ extension YearCalendarView {
             return Color(hex: 0xF28B82)
         } else if serviceName == "AGY" {
             return Color(hex: 0x24C1E0)
+        } else if serviceName == "Claude" {
+            return Color(hex: 0xD97757)
+        } else if serviceName == "ChatGPT" {
+            return Color(hex: 0x34A853)
         } else {
             return Color(hex: 0x1E88E5)
         }

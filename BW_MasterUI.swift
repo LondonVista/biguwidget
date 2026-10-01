@@ -233,8 +233,8 @@ enum DeltaColorHelper {
     static let defaultCyan = Color(hex: 0x24C1E0)  // Default signature cyan resting color
 
     static func dropColor(for delta: Double, service: ServiceKind? = nil) -> Color {
-        if service == .grok {
-            // Grok reports in integer increments (1%, 2%, ...)
+        if service == .grok || service == .claude || service == .chatGPT {
+            // These report whole percents (1%, 2%, ...), so 1% is the smallest step, not a heavy one.
             return delta > 1.0 ? highOrange : lowGreen
         } else {
             // AGY & Grok Bot report fractional deltas (0.01% - 1.5%+)

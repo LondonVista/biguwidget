@@ -1,9 +1,9 @@
 {
-  "version": "1.2.7",
-  "notes": "BigUwidget 1.2.7: New Claude card (S5) with 5-hour and weekly limits from your Claude Code sign-in. Fixes Grok freezing at 100% after a weekly reset, keeps a reset day's earlier usage in its bar, shows 0% once a reset passes, flags stale cards in orange, and refreshes after sleep.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.7",
+  "version": "1.2.8",
+  "notes": "BigUwidget 1.2.8: Fixes possible crashes on a cut-off Grok reply and on a failed AGY token refresh, skips expired sign-in cookies, labels the Claude and ChatGPT history correctly, colours whole-percent prompts properly, and lets Claude's Check again retry right after signing in.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.8",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.7/BigUwidget-1.2.7-Mac.zip",
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.8/BigUwidget-1.2.8-Mac.zip",
     "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.3/BigUwidget-1.2.3-Linux.zip",
     "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.3/BigUwidget-1.2.3-Windows.zip"
   }

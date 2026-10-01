@@ -48,7 +48,12 @@ enum KeychainTokenHelper {
         lock.unlock()
     }
 
-    static func refreshAccessToken(completion: @escaping (String?) -> Void) {
+    static func refreshAccessToken(completion callerCompletion: @escaping (String?) -> Void) {
+        // Callers fall back to the WebKit cookie store, which must be touched on main.
+        let completion: (String?) -> Void = { token in
+            if Thread.isMainThread { callerCompletion(token) }
+            else { DispatchQueue.main.async { callerCompletion(token) } }
+        }
         let creds = loadCredentials()
         guard let refreshToken = creds.refreshToken, !refreshToken.isEmpty else {
             completion(nil)
@@ -1122,7 +1127,9 @@ extension LiveServiceFetcher {
     private static var claudeLastOutcome: FetchOutcome = .success
 
     static func fetchClaude(completion: ((FetchOutcome) -> Void)? = nil) {
-        if let last = claudeLastAttempt, Date().timeIntervalSince(last) < claudeInterval {
+        // Signed out is not a rate-limit signal: let "Check again" retry right after /login.
+        if claudeLastOutcome != .needsLogin,
+           let last = claudeLastAttempt, Date().timeIntervalSince(last) < claudeInterval {
             completion?(claudeLastOutcome)
             return
         }
@@ -1339,12 +1346,24 @@ enum BinaryCookiesReader {
                 let url = readCString(pageData, from: cOff + urlOff)
                 let name = readCString(pageData, from: cOff + nameOff)
                 let val = readCString(pageData, from: cOff + valOff)
+                if let expiry = cookieExpiry(pageData, cOff), expiry < Date() { continue }
                 if !name.isEmpty {
                     cookies.append((url, name, val))
                 }
             }
         }
         return cookies
+    }
+
+    /// Expiry is a little-endian Double at +40, seconds since 2001-01-01. These files
+    /// include ones left by the older standalone widgets, so dead sessions are common.
+    private static func cookieExpiry(_ page: [UInt8], _ cOff: Int) -> Date? {
+        guard cOff + 48 <= page.count else { return nil }
+        var bits: UInt64 = 0
+        for k in 0..<8 { bits |= UInt64(page[cOff + 40 + k]) << (8 * UInt64(k)) }
+        let secs = Double(bitPattern: bits)
+        guard secs.isFinite, secs > 0 else { return nil }
+        return Date(timeIntervalSinceReferenceDate: secs)
     }
 
     private static func readCString(_ buf: [UInt8], from start: Int) -> String {
@@ -1369,7 +1388,8 @@ enum CreditsBinary {
         var periodStart: String?
         var periodEnd: String?
         var i = 0
-        while i < buf.count - 7 {
+        // An entry is 9 bytes (3A 07 08 pp 15 + float32), so byte i + 8 must exist.
+        while i + 8 < buf.count {
             if buf[i] == 0x3A && buf[i + 1] == 0x07 && buf[i + 2] == 0x08 {
                 let product = Int(buf[i + 3])
                 if buf[i + 4] == 0x15 {
@@ -1578,7 +1598,8 @@ enum CreditsBinary {
     }
 
     private static func protoTimestamp(_ buf: [UInt8], _ offset: Int, _ length: Int) -> String? {
-        let end = offset + length
+        // The length byte comes from the reply; a truncated body must not read past it.
+        let end = min(offset + length, buf.count)
         var pos = offset
         var seconds = 0
         var nanos = 0

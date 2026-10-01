@@ -11,3 +11,7 @@ node_modules/
 __pycache__/
 *.pyc
 .venv/
+
+# Local agent notes (contain machine paths)
+GEMINI.md
+CLAUDE.md

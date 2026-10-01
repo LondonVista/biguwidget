@@ -1292,16 +1292,8 @@ extension LiveServiceFetcher {
 enum BinaryCookiesReader {
     static func getCookies(domains: [String]) -> [String: String] {
         var result: [String: String] = [:]
-        let paths = [
-            "~/Library/HTTPStorages/com.londonvista.biguwidget.binarycookies",
-            "~/Library/HTTPStorages/com.londonvista.grok-usage-widget.binarycookies",
-            "~/Library/HTTPStorages/com.londonvista.grokbot-usage-widget.binarycookies",
-            "~/Library/HTTPStorages/com.londonvista.BigUwidget.binarycookies",
-            "~/Library/HTTPStorages/com.londonvista.agy-usage-widget.binarycookies"
-        ]
-        for p in paths {
-            let expanded = NSString(string: p).expandingTildeInPath
-            guard let data = try? Data(contentsOf: URL(fileURLWithPath: expanded)) else { continue }
+        for url in cookieFiles() {
+            guard let data = try? Data(contentsOf: url) else { continue }
             let parsed = parseBinaryCookies(data: data)
             for (url, name, val) in parsed {
                 if domains.contains(where: { url.contains($0) }) {
@@ -1310,6 +1302,26 @@ enum BinaryCookiesReader {
             }
         }
         return result
+    }
+
+    /// Cookie stores from this app and the older standalone widgets, found by file
+    /// name so no developer-specific bundle id is baked in. Our own store comes last
+    /// so its fresher values win.
+    static func cookieFiles() -> [URL] {
+        let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/HTTPStorages")
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+        let ownName = "\(Bundle.main.bundleIdentifier ?? "").binarycookies"
+        let suffixes = [".biguwidget.binarycookies", "-usage-widget.binarycookies"]
+        // The previous BigUwidget store is the freshest legacy one, so it goes last.
+        let legacy = names
+            .filter { n in n != ownName && suffixes.contains { n.lowercased().hasSuffix($0) } }
+            .sorted { a, b in
+                let ab = a.lowercased().hasSuffix(".biguwidget.binarycookies")
+                let bb = b.lowercased().hasSuffix(".biguwidget.binarycookies")
+                return ab == bb ? a < b : !ab
+            }
+            .map { dir.appendingPathComponent($0) }
+        return legacy + [dir.appendingPathComponent(ownName)]
     }
 
     private static func parseBinaryCookies(data: Data) -> [(url: String, name: String, val: String)] {
@@ -1353,6 +1365,62 @@ enum BinaryCookiesReader {
             }
         }
         return cookies
+    }
+
+    /// Copies live cookies from the legacy stores into this app's WebKit store once,
+    /// so a bundle-id change keeps every sign-in. Must run on main.
+    static func importLegacyCookiesIfNeeded(into store: WKHTTPCookieStore) {
+        let flag = "bigu.importedLegacyCookies.v1"
+        guard !UserDefaults.standard.bool(forKey: flag) else { return }
+        let own = "\(Bundle.main.bundleIdentifier ?? "").binarycookies"
+        var latest: [String: HTTPCookie] = [:]
+        for url in cookieFiles() where url.lastPathComponent != own {
+            guard let data = try? Data(contentsOf: url) else { continue }
+            for c in parseFullCookies(data: data) {
+                latest["\(c.domain)|\(c.path)|\(c.name)"] = c
+            }
+        }
+        for c in latest.values { store.setCookie(c) }
+        UserDefaults.standard.set(true, forKey: flag)
+    }
+
+    /// Same record walk as parseBinaryCookies, keeping path, expiry and flags.
+    private static func parseFullCookies(data: Data) -> [HTTPCookie] {
+        let buf = [UInt8](data)
+        guard buf.count > 12, buf[0] == 0x63, buf[1] == 0x6F, buf[2] == 0x6F, buf[3] == 0x6B else { return [] }
+        func be32(_ o: Int) -> Int { Int(UInt32(buf[o]) << 24 | UInt32(buf[o+1]) << 16 | UInt32(buf[o+2]) << 8 | UInt32(buf[o+3])) }
+        func le32(_ p: [UInt8], _ o: Int) -> Int { Int(UInt32(p[o]) | UInt32(p[o+1]) << 8 | UInt32(p[o+2]) << 16 | UInt32(p[o+3]) << 24) }
+        let numPages = be32(4)
+        guard numPages >= 0, buf.count >= 8 + numPages * 4 else { return [] }
+        var pos = 8 + numPages * 4
+        var out: [HTTPCookie] = []
+        for i in 0..<numPages {
+            let sz = be32(8 + i * 4)
+            guard sz >= 8, pos + sz <= buf.count else { break }
+            let page = Array(buf[pos..<(pos + sz)])
+            pos += sz
+            let n = le32(page, 4)
+            guard n >= 0, page.count >= 8 + n * 4 else { continue }
+            for k in 0..<n {
+                let o = le32(page, 8 + k * 4)
+                guard o + 48 <= page.count else { continue }
+                guard let expiry = cookieExpiry(page, o), expiry > Date() else { continue }
+                let flags = le32(page, o + 8)
+                let domain = readCString(page, from: o + le32(page, o + 16))
+                let name = readCString(page, from: o + le32(page, o + 20))
+                let path = readCString(page, from: o + le32(page, o + 24))
+                let value = readCString(page, from: o + le32(page, o + 28))
+                guard !domain.isEmpty, !name.isEmpty else { continue }
+                var props: [HTTPCookiePropertyKey: Any] = [
+                    .domain: domain, .path: path.isEmpty ? "/" : path,
+                    .name: name, .value: value, .expires: expiry
+                ]
+                if flags & 1 != 0 { props[.secure] = "TRUE" }
+                if flags & 4 != 0 { props[HTTPCookiePropertyKey("HttpOnly")] = "TRUE" }
+                if let c = HTTPCookie(properties: props) { out.append(c) }
+            }
+        }
+        return out
     }
 
     /// Expiry is a little-endian Double at +40, seconds since 2001-01-01. These files

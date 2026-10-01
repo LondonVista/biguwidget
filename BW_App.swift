@@ -1016,6 +1016,7 @@ enum BigUwidgetMain {
     static func main() {
         guard SingleInstance.claim() else { return }
         PrefsMigrate.fromLegacyBundleIfNeeded()
+        BinaryCookiesReader.importLegacyCookiesIfNeeded(into: WKWebsiteDataStore.default().httpCookieStore)
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate
@@ -1025,17 +1026,41 @@ enum BigUwidgetMain {
 }
 
 enum PrefsMigrate {
+    /// Earlier builds used a different bundle id. Find its preferences by file name
+    /// pattern (com.<anything>.BigUwidget.plist) rather than naming the old id.
+    static func legacyPrefsDomains() -> [(domain: String, modified: Date)] {
+        let own = Bundle.main.bundleIdentifier ?? ""
+        let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Preferences")
+        let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+        return files.compactMap { url in
+            let name = url.lastPathComponent
+            guard name.hasPrefix("com."), name.hasSuffix(".BigUwidget.plist") else { return nil }
+            let domain = String(name.dropLast(".plist".count))
+            guard domain != own else { return nil }
+            let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+            return (domain, modified)
+        }
+    }
+
     static func fromLegacyBundleIfNeeded() {
-        let flag = "bigu.migratedPrefsFromLegacyBundle"
-        guard !UserDefaults.standard.bool(forKey: flag) else { return }
-        if let old = UserDefaults(suiteName: "com.londonvista.BigUwidget") {
-            for (key, value) in old.dictionaryRepresentation() {
-                if UserDefaults.standard.object(forKey: key) == nil {
-                    UserDefaults.standard.set(value, forKey: key)
+        // v2: the first attempt left a stale domain already flagged as migrated.
+        let flag = "bigu.migratedPrefsFromLegacyBundle.v2"
+        let std = UserDefaults.standard
+        guard !std.bool(forKey: flag) else { return }
+        let ownPlist = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Preferences/\(Bundle.main.bundleIdentifier ?? "").plist")
+        let ownModified = (try? ownPlist.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+        for legacy in legacyPrefsDomains() {
+            guard let old = UserDefaults(suiteName: legacy.domain) else { continue }
+            // Newer legacy prefs win; otherwise only fill gaps.
+            let overwrite = legacy.modified > ownModified
+            for (key, value) in old.persistentDomain(forName: legacy.domain) ?? [:] {
+                if overwrite || std.object(forKey: key) == nil {
+                    std.set(value, forKey: key)
                 }
             }
         }
-        UserDefaults.standard.set(true, forKey: flag)
+        std.set(true, forKey: flag)
     }
 }
 
@@ -1044,8 +1069,7 @@ enum SingleInstance {
         let mine = ProcessInfo.processInfo.processIdentifier
         let others = NSWorkspace.shared.runningApplications.filter {
             $0.processIdentifier != mine &&
-            ($0.bundleIdentifier == "com.londonvista.biguwidget"
-             || $0.bundleIdentifier == "com.londonvista.BigUwidget"
+            ($0.bundleIdentifier == Bundle.main.bundleIdentifier
              || $0.executableURL?.lastPathComponent == "BigUwidget")
         }
         if !others.isEmpty {

@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld("bigu", {
   setShowProjectedFutureDays: (enabled) => ipcRenderer.invoke("set-show-projected-future-days", enabled),
   toggleUndock: (id) => ipcRenderer.invoke("toggle-undock", id),
   setUndocked: (id, undocked) => ipcRenderer.invoke("set-undocked", id, undocked),
+  toggleCollapse: (id) => ipcRenderer.invoke("toggle-collapse", id),
+  setCollapsed: (id, collapsed) => ipcRenderer.invoke("set-collapsed", id, collapsed),
   setZoomFactor: (factor) => {
     try {
       if (typeof factor === "number" && factor > 0) {

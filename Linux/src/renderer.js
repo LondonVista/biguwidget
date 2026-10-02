@@ -48,6 +48,11 @@ function formatResetDate(ts) {
   }
 }
 
+function isStale(ts) {
+  if (!ts) return false;
+  return (Date.now() - ts) > 15 * 60 * 1000;
+}
+
 function ago(ts) {
   if (!ts) return "";
   const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
@@ -80,8 +85,15 @@ function fmtPct(n) {
   return r === Math.round(r) ? String(Math.round(r)) : r.toFixed(1);
 }
 
-let state = { cards: [], enabled: [], order: [], snapshots: {}, version: "1.2.3", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {}, centerTodayInWeekStrip: false, showProjectedFutureDays: true };
-const collapsed = new Set();
+let state = { cards: [], enabled: [], order: [], collapsed: ["grok", "grokBot", "cursor", "agy", "claudeGPT", "chatGPT"], snapshots: {}, version: "1.2.3", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {}, centerTodayInWeekStrip: false, showProjectedFutureDays: true };
+const collapsed = new Set(["grok", "grokBot", "cursor", "agy", "claudeGPT", "chatGPT"]);
+
+function syncCollapsedFromState() {
+  if (Array.isArray(state.collapsed)) {
+    collapsed.clear();
+    for (const id of state.collapsed) collapsed.add(id);
+  }
+}
 
 function orderedCards() {
   const byId = Object.fromEntries((state.cards || []).map((c) => [c.id, c]));
@@ -128,7 +140,8 @@ function renderDeltas(snap, cardId) {
     const isTop = index === 0;
     const op = opacities[Math.min(index, opacities.length - 1)];
     const topCls = isTop ? " delta-top" : "";
-    return `<div class="delta-row delta-idx-${index}" style="opacity: ${op}"><span class="delta-time">${timeStr}</span><span class="delta-badge delta-cyan${topCls}">${valStr}</span></div>`;
+    const colorCls = cardId === "claude" ? " delta-claude" : " delta-cyan";
+    return `<div class="delta-row delta-idx-${index}" style="opacity: ${op}"><span class="delta-time">${timeStr}</span><span class="delta-badge${colorCls}${topCls}">${valStr}</span></div>`;
   }).join("");
 }
 
@@ -248,7 +261,7 @@ function render() {
           <span class="today-left" style="font-size:11px">today: ${formatSoft(todayLeftVal)} left</span>
           ${isOverrun ? `<span class="overrun" style="font-size:11px">${formatOverrun(overrunVal)} above</span>` : ""}
         </div>
-        <span class="ago no-drag" data-act="fetch" data-id="${card.id}">${ago(snap.fetchedAt)}</span>
+        <span class="ago no-drag ${isStale(snap.fetchedAt) ? "stale" : ""}" data-act="fetch" data-id="${card.id}">${ago(snap.fetchedAt)}</span>
       </div>`;
     } else if (snap.status === "loading") {
       html += `<div class="muted">Loading…</div>`;
@@ -471,7 +484,7 @@ function render() {
           ${isOverrun ? `<span class="overrun">${formatOverrun(overrunVal)} above</span>` : ""}
         </div>
         <div class="ago-row">
-          <span class="ago no-drag" data-act="fetch" data-id="${card.id}">${ago(snap.fetchedAt)}</span>
+          <span class="ago no-drag ${isStale(snap.fetchedAt) ? "stale" : ""}" data-act="fetch" data-id="${card.id}">${ago(snap.fetchedAt)}</span>
         </div>
       </div>`;
     }
@@ -481,6 +494,9 @@ function render() {
 
   if (!enabled.has("chatGPT")) {
     html += `<div class="card add no-drag"><button class="addbtn" data-act="add" data-id="chatGPT">+ Add ChatGPT</button></div>`;
+  }
+  if (!enabled.has("claude")) {
+    html += `<div class="card add no-drag"><button class="addbtn addbtn-claude" data-act="add" data-id="claude">+ Add Claude</button></div>`;
   }
   html += `</div>`;
   root.innerHTML = html;
@@ -537,6 +553,9 @@ document.addEventListener("click", async (e) => {
     if (collapsed.has(id)) collapsed.delete(id);
     else collapsed.add(id);
     render();
+    if (window.bigu && typeof window.bigu.setCollapsed === "function") {
+      window.bigu.setCollapsed(id, collapsed.has(id));
+    }
   }
   if (act === "add" && id) {
     window.bigu.setEnabled(id, true);
@@ -554,9 +573,11 @@ document.addEventListener("click", async (e) => {
 async function boot() {
   if (!window.bigu) return;
   state = await window.bigu.getState();
+  syncCollapsedFromState();
   render();
   window.bigu.onState((s) => {
     state = s;
+    syncCollapsedFromState();
     render();
   });
   setInterval(() => {

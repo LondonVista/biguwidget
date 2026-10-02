@@ -3,6 +3,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const cp = require("child_process");
+const updater = require("./updater");
 
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
@@ -636,5 +637,141 @@ async function fetchCursor() {
   return { ok: true, weekly, reset: null, plan: "Cursor" };
 }
 
-module.exports = { fetchAGY, fetchGrok, fetchGrokBot, fetchCursor, fetchChatGPT, detectAGYToken, cleanToken };
+function readClaudeCodeCredentials() {
+  function parse(raw) {
+    if (!raw) return null;
+    try {
+      const obj = typeof raw === "string" ? JSON.parse(raw) : raw;
+      const oauth = obj && obj.claudeAiOauth;
+      const token = oauth && oauth.accessToken;
+      if (typeof token === "string" && token.trim().length > 0) {
+        const sub = (oauth.subscriptionType && typeof oauth.subscriptionType === "string") ? oauth.subscriptionType : "";
+        const plan = sub.trim().length > 0 ? "Claude " + sub.charAt(0).toUpperCase() + sub.slice(1) : "Claude";
+        return { token: token.trim(), plan };
+      }
+    } catch {}
+    return null;
+  }
+
+  // 1. macOS Keychain (if running on darwin)
+  if (process.platform === "darwin") {
+    try {
+      const out = cp.execFileSync("/usr/bin/security", ["find-generic-password", "-s", "Claude Code-credentials", "-w"], {
+        encoding: "utf8",
+        timeout: 2000,
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+      const creds = parse(out);
+      if (creds) return creds;
+    } catch {}
+  }
+
+  // 2. Local credentials file (~/.claude/.credentials.json)
+  try {
+    const credPath = path.join(os.homedir(), ".claude", ".credentials.json");
+    if (fs.existsSync(credPath)) {
+      const content = fs.readFileSync(credPath, "utf8");
+      const creds = parse(content);
+      if (creds) return creds;
+    }
+  } catch {}
+
+  return null;
+}
+
+let claudeLastAttempt = 0;
+let claudeLastSuccess = 0;
+let claudeInterval = 150 * 1000; // 2.5 min
+let claudeLastOutcome = null;
+
+async function fetchClaude() {
+  const now = Date.now();
+  if (claudeLastOutcome && now - claudeLastAttempt < claudeInterval) {
+    return claudeLastOutcome;
+  }
+  claudeLastAttempt = now;
+
+  const creds = readClaudeCodeCredentials();
+  if (!creds || !creds.token) {
+    claudeLastOutcome = { ok: false, needLogin: true, error: "Claude Code credentials not found" };
+    return claudeLastOutcome;
+  }
+
+  const { status, buf } = await request({
+    method: "GET",
+    url: "https://api.anthropic.com/api/oauth/usage",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${creds.token}`,
+      "anthropic-beta": "oauth-2025-04-20",
+      "User-Agent": `BigUwidget/${updater.VERSION}`,
+    },
+    timeout: 10000,
+  });
+
+  if (status === 401 || status === 403) {
+    claudeLastOutcome = { ok: false, needLogin: true };
+    return claudeLastOutcome;
+  }
+
+  if (status === 429) {
+    claudeInterval = Math.min(600 * 1000, claudeInterval * 2);
+    // If we have a recent success (< 15 min), keep the last good reading
+    if (claudeLastOutcome && claudeLastOutcome.ok && (now - claudeLastSuccess < 900 * 1000)) {
+      return claudeLastOutcome;
+    }
+    return { ok: false, error: "Rate limited" };
+  }
+
+  if (status !== 200) {
+    return { ok: false, error: `Couldn't refresh (${status})` };
+  }
+
+  let json;
+  try {
+    json = JSON.parse(buf.toString("utf8"));
+  } catch {
+    return { ok: false, error: "Couldn't parse Claude usage" };
+  }
+
+  function parseWindowObj(w) {
+    if (!w || typeof w !== "object") return { used: null, reset: null };
+    const used = typeof w.utilization === "number" ? Math.max(0, Math.min(100, w.utilization)) : null;
+    let reset = null;
+    if (typeof w.resets_at === "string" && w.resets_at.length > 0) {
+      const parsed = Date.parse(w.resets_at);
+      if (!isNaN(parsed)) reset = parsed;
+    }
+    return { used, reset };
+  }
+
+  const five = parseWindowObj(json.five_hour);
+  const seven = parseWindowObj(json.seven_day);
+  const weekly = seven.used != null ? seven.used : (five.used != null ? five.used : 0);
+  const reset = seven.reset != null ? seven.reset : five.reset;
+
+  claudeLastSuccess = Date.now();
+  claudeInterval = 150 * 1000;
+  claudeLastOutcome = {
+    ok: true,
+    weekly,
+    five: five.used,
+    reset,
+    fiveReset: five.reset,
+    plan: creds.plan || "Claude",
+  };
+  return claudeLastOutcome;
+}
+
+module.exports = {
+  fetchAGY,
+  fetchGrok,
+  fetchGrokBot,
+  fetchCursor,
+  fetchChatGPT,
+  fetchClaude,
+  readClaudeCodeCredentials,
+  detectAGYToken,
+  cleanToken,
+};
 

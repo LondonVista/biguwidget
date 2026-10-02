@@ -233,7 +233,8 @@ enum DeltaColorHelper {
     static let defaultCyan = Color(hex: 0x24C1E0)  // Default signature cyan resting color
 
     static func dropColor(for delta: Double, service: ServiceKind? = nil) -> Color {
-        if service == .grok || service == .claude || service == .chatGPT {
+        // Claude's weekly % is estimated to fractions now, so it uses the fractional rule.
+        if service == .grok || service == .chatGPT {
             // These report whole percents (1%, 2%, ...), so 1% is the smallest step, not a heavy one.
             return delta > 1.0 ? highOrange : lowGreen
         } else {
@@ -277,7 +278,7 @@ struct DeltaBubbleRow: View {
             if !age.isEmpty {
                 Text(age)
                     .font(.system(size: isTop ? 7.5 : 6.8, weight: .medium, design: .monospaced))
-                    .foregroundStyle(Color.white.opacity(0.46 * op))
+                    .foregroundStyle(Color.white.opacity(0.66 * op))
                     .fixedSize(horizontal: true, vertical: false)
             }
             Text(deltaText)
@@ -729,7 +730,7 @@ struct ServiceCardView: View {
                         // Left: Total used %
                         HStack(alignment: .firstTextBaseline, spacing: 1.5) {
                             RollingWheelNumberView(
-                                value: Int(snap.totalPercent.rounded()),
+                                value: Int((snap.officialPercent ?? snap.totalPercent).rounded()),
                                 font: .system(size: snap.totalPercent >= 99.5 ? 12 : 13, weight: .bold, design: .rounded),
                                 color: Color.white.opacity(0.90),
                                 height: 16
@@ -789,7 +790,7 @@ struct ServiceCardView: View {
                             VStack(alignment: .leading, spacing: 1) {
                                 HStack(alignment: .firstTextBaseline, spacing: 3) {
                                     RollingWheelNumberView(
-                                        value: Int(snap.totalPercent.rounded()),
+                                        value: Int((snap.officialPercent ?? snap.totalPercent).rounded()),
                                         font: .system(size: snap.totalPercent >= 99.5 ? 20 : 22, weight: .semibold, design: .rounded),
                                         color: Color.white.opacity(0.86),
                                         height: 27

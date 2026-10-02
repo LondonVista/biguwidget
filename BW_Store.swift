@@ -522,6 +522,7 @@ final class SingleServiceStore: ObservableObject {
         let plan = d["planLabel"] as? String ?? service.rawValue
 
         var total = (d["totalPercent"] as? NSNumber)?.doubleValue ?? 0.0
+        var official = (d["officialPercent"] as? NSNumber)?.doubleValue
         var rDate = (d["resetsAt"] as? NSNumber).map { Date(timeIntervalSince1970: $0.doubleValue) }
         if service == .agy, let gemini = quotaGroup(namedContains: "gemini") {
             applyQuotaGroup(gemini, total: &total, resetsAt: &rDate, fiveUsed: &fiveUsed, fiveReset: &fiveReset, slices: &slices, sliceName: "Gemini")
@@ -537,6 +538,7 @@ final class SingleServiceStore: ObservableObject {
         if let r = rDate, r <= Date() {
             rolledOver = true
             total = 0
+            official = official.map { _ in 0 }
             slices = slices.map { UsageSlice(name: $0.name, percent: 0, color: $0.color) }
             rDate = nil
             rLabel = "Reset — waiting for new data"
@@ -587,7 +589,8 @@ final class SingleServiceStore: ObservableObject {
             prepaidBalance: prepaidBalance,
             onDemandEligible: onDemandEligible,
             onDemandUsed: onDemandUsed,
-            rolledOver: rolledOver
+            rolledOver: rolledOver,
+            officialPercent: official
         )
     }
 

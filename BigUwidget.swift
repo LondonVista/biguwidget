@@ -7,8 +7,8 @@ import WebKit
 enum BigUwidgetConfig {
     /// Ko-fi / GitHub Sponsors / PayPal. Donate is hidden if this is nil.
     static let donateURL = URL(string: "https://ko-fi.com/london_vista")
-    static let feedbackURL = URL(string: "https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v1.2.10&body=%2A%2AOS%2A%2A%3A+macOS%0A%2A%2AVersion%2A%2A%3A+v1.2.10%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A")
-    static let appVersion = "1.2.10"
+    static let feedbackURL = URL(string: "https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v1.2.12&body=%2A%2AOS%2A%2A%3A+macOS%0A%2A%2AVersion%2A%2A%3A+v1.2.12%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A")
+    static let appVersion = "1.2.12"
     static let updateFeedURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest/download/latest.json")
     static let githubReleasesURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest")
     static let githubAPIURL = URL(string: "https://api.github.com/repos/LondonVista/biguwidget/releases/latest")
@@ -272,9 +272,12 @@ struct UsageSnapshot: Equatable {
     var onDemandUsed: Double? = nil
     /// The cached reading is from before a reset that has since passed; shown as 0%.
     var rolledOver: Bool = false
+    /// The provider's own whole-number reading when `totalPercent` is an estimate.
+    var officialPercent: Double? = nil
 
     static func == (lhs: UsageSnapshot, rhs: UsageSnapshot) -> Bool {
         lhs.rolledOver == rhs.rolledOver &&
+        lhs.officialPercent == rhs.officialPercent &&
         lhs.totalPercent == rhs.totalPercent &&
         lhs.resetsAt == rhs.resetsAt &&
         lhs.resetsLabel == rhs.resetsLabel &&
@@ -423,10 +426,10 @@ enum UsageParser {
         if sec < 60 { return "\(sec)s" }
         let min = sec / 60
         if min < 60 { return "\(min)m" }
+        // Hours keep their minutes (1h12m); two-digit minutes keep the column aligned.
         let hr = min / 60
-        if hr < 24 { return "\(hr)h" }
-        let days = hr / 24
-        return "\(days)d"
+        if hr < 24 { return String(format: "%dh%02dm", hr, min % 60) }
+        return String(format: "%dd%02dh", hr / 24, hr % 24)
     }
 
     static func remainingParts(until date: Date, now: Date = Date()) -> (days: String?, rest: String) {

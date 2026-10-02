@@ -1,14 +1,14 @@
 {
-  "version": "1.2.10",
+  "version": "1.2.12",
   "versions": {
-    "darwin": "1.2.10",
+    "darwin": "1.2.12",
     "linux": "1.2.11",
     "win32": "1.2.11"
   },
-  "notes": "Mac 1.2.10: The Claude card recovers within a few minutes after a restart or sleep when Anthropic briefly rate-limits it, and says it is retrying. Linux & Windows 1.2.11: New Claude card, cards remember being collapsed, weekly resets match your local day, and update checks work again.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.10",
+  "notes": "Mac 1.2.12: The Claude card estimates weekly usage between whole percents from the 5-hour window, so prompt bubbles and history show finer steps; prompt ages show hours with minutes and are easier to read. Linux & Windows 1.2.11: New Claude card, cards remember being collapsed, weekly resets match your local day, and update checks work again.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.12",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.10/BigUwidget-1.2.10-Mac.zip",
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.12/BigUwidget-1.2.12-Mac.zip",
     "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.11/BigUwidget-1.2.11-Linux.zip",
     "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.11/BigUwidget-1.2.11-Windows.zip"
   }

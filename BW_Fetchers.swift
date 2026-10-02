@@ -761,7 +761,8 @@ enum LiveServiceFetcher {
         prevTotalOverride: Double?,
         prepaidBalance: Double? = nil,
         onDemandEligible: Bool = false,
-        onDemandUsed: Double? = nil
+        onDemandUsed: Double? = nil,
+        officialPercent: Double? = nil
     ) {
         let lastUsageURL = dir.appendingPathComponent("last-usage.json")
         let deltasURL = dir.appendingPathComponent("session-deltas.json")
@@ -812,6 +813,7 @@ enum LiveServiceFetcher {
         if let pb = prepaidBalance { dict["prepaidBalance"] = pb }
         if onDemandEligible { dict["onDemandEligible"] = true }
         if let odu = onDemandUsed { dict["onDemandUsed"] = odu }
+        if let op = officialPercent { dict["officialPercent"] = op }
         if let uData = try? JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted]) {
             try? uData.write(to: lastUsageURL, options: .atomic)
         }
@@ -1277,11 +1279,12 @@ extension LiveServiceFetcher {
         let five = claudeWindow(json["five_hour"])
         guard let weekly = claudeWindow(json["seven_day"]) ?? five else { return }
         let spend = json["spend"] as? [String: Any]
+        let estimate = ClaudeWeeklyEstimator.update(dir: dir, weekly: weekly.used, fiveHour: five?.used)
         writeServiceCache(
             dir: dir,
             planLabel: plan,
-            totalPercent: weekly.used,
-            slices: [["name": "Claude", "percent": weekly.used]],
+            totalPercent: estimate,
+            slices: [["name": "Claude", "percent": estimate]],
             resetsAt: weekly.resetsAt,
             fiveHourPercent: five?.used,
             fiveHourResetsAt: five?.resetsAt,
@@ -1290,8 +1293,89 @@ extension LiveServiceFetcher {
             maxStep: 100.0,
             prevTotalOverride: nil,
             prepaidBalance: claudeCreditBalance(spend),
-            onDemandEligible: (spend?["enabled"] as? Bool) ?? false
+            onDemandEligible: (spend?["enabled"] as? Bool) ?? false,
+            officialPercent: weekly.used
         )
+    }
+}
+
+/// Anthropic reports the weekly limit in whole percents, but the 5-hour window moves
+/// several times faster (about 8 points of 5h per weekly point on Pro). Progress in the
+/// 5h window since the last weekly tick estimates the fraction in between.
+/// The estimate stays in [official, official + 0.95], never goes backwards within a
+/// weekly point, and resets when the official number moves.
+enum ClaudeWeeklyEstimator {
+    private struct State: Codable {
+        var weekly: Double          // last official weekly %
+        var fraction: Double        // estimated progress toward weekly + 1
+        var lastFive: Double        // last 5h reading
+        var tickBase: Double?       // 5h reading at the last weekly tick; nil after a 5h reset
+        var samples: [Double]       // 5h points per weekly point, learned from ticks
+    }
+
+    static let defaultRatio = 8.0
+    private static let maxFraction = 0.95
+
+    static func ratio(_ samples: [Double]) -> Double {
+        guard samples.count >= 3 else { return defaultRatio }
+        let s = samples.sorted()
+        return s[s.count / 2]
+    }
+
+    static func update(dir: URL, weekly: Double, fiveHour: Double?) -> Double {
+        let url = dir.appendingPathComponent("weekly-estimate.json")
+        guard let five = fiveHour else { return weekly }
+        var st = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(State.self, from: $0) }
+            ?? State(weekly: weekly, fraction: 0, lastFive: five, tickBase: nil, samples: seedSamples(dir: dir))
+
+        if weekly < st.weekly {
+            // Weekly reset.
+            st.fraction = 0
+            st.tickBase = nil
+        } else if weekly > st.weekly {
+            // Official tick: learn how many 5h points one weekly point took.
+            if weekly - st.weekly == 1, let base = st.tickBase, five >= base {
+                let sample = five - base
+                if sample >= 2, sample <= 40 {
+                    st.samples.append(sample)
+                    st.samples = Array(st.samples.suffix(30))
+                }
+            }
+            st.fraction = 0
+            st.tickBase = five
+        } else {
+            var gained = five - st.lastFive
+            if gained < 0 {
+                // The 5h window reset; what shows now was used since then.
+                gained = five
+                st.tickBase = nil
+            }
+            st.fraction = min(maxFraction, st.fraction + max(0, gained) / ratio(st.samples))
+        }
+        st.weekly = weekly
+        st.lastFive = five
+        if let data = try? JSONEncoder().encode(st) { try? data.write(to: url, options: .atomic) }
+        return weekly + st.fraction
+    }
+
+    /// First run: learn from weekly ticks already logged with their 5h reading.
+    private static func seedSamples(dir: URL) -> [Double] {
+        guard let data = try? Data(contentsOf: dir.appendingPathComponent("session-deltas.json")),
+              let list = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
+        let ticks = list
+            .compactMap { r -> (ts: Double, delta: Double, five: Double)? in
+                guard let ts = (r["timestamp"] as? NSNumber)?.doubleValue,
+                      let d = (r["weeklyDelta"] as? NSNumber)?.doubleValue,
+                      let f = (r["fiveHourPercent"] as? NSNumber)?.doubleValue else { return nil }
+                return (ts, d, f)
+            }
+            .sorted { $0.ts < $1.ts }
+        var out: [Double] = []
+        for (a, b) in zip(ticks, ticks.dropFirst()) where b.delta == 1 && b.five >= a.five {
+            let sample = b.five - a.five
+            if sample >= 2, sample <= 40 { out.append(sample) }
+        }
+        return Array(out.suffix(30))
     }
 }
 

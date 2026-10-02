@@ -15,3 +15,5 @@ __pycache__/
 # Local agent notes (contain machine paths)
 GEMINI.md
 CLAUDE.md
+.env
+.env.*

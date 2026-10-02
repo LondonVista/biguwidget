@@ -49,6 +49,12 @@ Latest releases: **[v1.2.10](https://github.com/LondonVista/biguwidget/releases/
 - **Linux**: Node.js 20+, then `./Start.sh`.
 - **Windows**: Node.js 20+, then `Start.bat`.
 
+### Install with Grok Bot
+
+The **Weekly Usage** Grok Bot template installs the Linux BigUwidget on your Grok Bot computer, so you can see how much of the week's Grok Bot usage is left without digging through settings. Cards for Grok, AGY and ChatGPT are optional, and it can also install the widget on Mac or Windows.
+
+[▶ Try the Weekly Usage template](https://x.ai/bot/TEWOTNV18AmN4GtqjtUSv) · [Announcement on X](https://x.com/London_Vista/status/2100689107806818537)
+
 ## How it works
 
 BigUwidget has no server and no account of its own. Every few minutes it asks each service for the same usage numbers you would see on that service's own usage page, then draws them as cards. It sends no analytics or telemetry. The only other request it makes is the update check to GitHub.

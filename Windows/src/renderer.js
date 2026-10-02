@@ -85,7 +85,7 @@ function fmtPct(n) {
   return r === Math.round(r) ? String(Math.round(r)) : r.toFixed(1);
 }
 
-let state = { cards: [], enabled: [], order: [], collapsed: ["grok", "grokBot", "cursor", "agy", "claudeGPT", "chatGPT"], snapshots: {}, version: "1.2.3", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {}, centerTodayInWeekStrip: false, showProjectedFutureDays: true };
+let state = { cards: [], enabled: [], order: [], collapsed: ["grok", "grokBot", "cursor", "agy", "claudeGPT", "chatGPT"], snapshots: {}, version: "1.2.11", updatePolicy: "prompt", update: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {}, centerTodayInWeekStrip: false, showProjectedFutureDays: true };
 const collapsed = new Set(["grok", "grokBot", "cursor", "agy", "claudeGPT", "chatGPT"]);
 
 function syncCollapsedFromState() {

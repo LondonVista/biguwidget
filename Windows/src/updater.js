@@ -6,7 +6,7 @@ const { spawn, spawnSync } = require("child_process");
 const { pipeline } = require("stream/promises");
 const { Readable } = require("stream");
 
-const VERSION = "1.2.3";
+const VERSION = "1.2.11";
 const FEED = "https://github.com/LondonVista/biguwidget/releases/latest/download/latest.json";
 const GITHUB_API = "https://api.github.com/repos/LondonVista/biguwidget/releases/latest";
 const PAGE = "https://github.com/LondonVista/biguwidget/releases/latest";
@@ -60,8 +60,10 @@ function normalizeFeed(data) {
   if (!data) return null;
   if (data.version) {
     const downloads = data.downloads || {};
+    // Platforms release on their own schedule; "versions" overrides the shared "version".
+    const versions = data.versions || {};
     return {
-      version: String(data.version).replace(/^v/, ""),
+      version: String(versions[platformKey()] || data.version).replace(/^v/, ""),
       notes: data.notes || "",
       html_url: data.html_url || PAGE,
       url: downloads[platformKey()] || data.url || data.html_url || PAGE,
@@ -71,13 +73,14 @@ function normalizeFeed(data) {
     const ver = String(data.tag_name).replace(/^v/, "");
     const assets = data.assets || [];
     const key = platformKey();
-    const match =
-      assets.find((a) => {
-        const n = (a.name || "").toLowerCase();
-        if (key === "darwin") return n.includes("mac") || n.includes("darwin");
-        if (key === "win32") return n.includes("win") || n.includes("windows");
-        return n.includes("linux");
-      }) || assets[0];
+    const match = assets.find((a) => {
+      const n = (a.name || "").toLowerCase();
+      if (key === "darwin") return n.includes("mac") || n.includes("darwin");
+      if (key === "win32") return n.includes("win") || n.includes("windows");
+      return n.includes("linux");
+    });
+    // A release without a build for this platform is not an update for it.
+    if (!match) return null;
     return {
       version: ver,
       notes: data.body || "",
@@ -143,7 +146,9 @@ async function installUpdate(info) {
   await downloadTo(info.url, zip);
   const out = path.join(tmp, "out");
   unzip(zip, out);
-  const packed = fs.readdirSync(out).map((n) => path.join(out, n)).find((p) => fs.statSync(p).isDirectory()) || out;
+  // Zips are either wrapped in one top-level folder or flat (src/, build/ at the root).
+  const entries = fs.readdirSync(out).map((n) => path.join(out, n));
+  const packed = entries.length === 1 && fs.statSync(entries[0]).isDirectory() ? entries[0] : out;
   const root = path.join(__dirname, "..");
   copyTree(packed, root);
   app.relaunch();

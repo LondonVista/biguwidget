@@ -36,9 +36,11 @@ const CARDS = [
   { id: "agy", title: "AGY", login: "https://antigravity.google" },
   { id: "claudeGPT", title: "Claude & GPT (from AGY)", login: "https://antigravity.google" },
   { id: "chatGPT", title: "ChatGPT", login: "https://chatgpt.com" },
+  { id: "claude", title: "Claude", login: "https://claude.ai/settings/usage" },
 ];
 
-const DEFAULT_ENABLED = ["grok", "grokBot", "cursor", "agy", "claudeGPT"];
+const DEFAULT_ENABLED = ["grok", "grokBot", "cursor", "agy", "claudeGPT", "claude"];
+const DEFAULT_COLLAPSED = ["grok", "grokBot", "cursor", "agy", "claudeGPT", "chatGPT"];
 
 
 function statePath() {
@@ -47,9 +49,13 @@ function statePath() {
 
 function loadState() {
   try {
-    return JSON.parse(fs.readFileSync(statePath(), "utf8"));
+    const loaded = JSON.parse(fs.readFileSync(statePath(), "utf8"));
+    if (!Array.isArray(loaded.collapsed)) {
+      loaded.collapsed = [...DEFAULT_COLLAPSED];
+    }
+    return loaded;
   } catch {
-    return { enabled: DEFAULT_ENABLED, order: DEFAULT_ENABLED, undocked: [], undockedBounds: {}, snapshots: {}, bounds: null, updatePolicy: "prompt", agyToken: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {}, centerTodayInWeekStrip: true, showProjectedFutureDays: true };
+    return { enabled: DEFAULT_ENABLED, order: DEFAULT_ENABLED, collapsed: [...DEFAULT_COLLAPSED], undocked: [], undockedBounds: {}, snapshots: {}, bounds: null, updatePolicy: "prompt", agyToken: null, zoom: 1.0, opacity: 1.0, hideWeekDays: {}, centerTodayInWeekStrip: true, showProjectedFutureDays: true };
   }
 }
 
@@ -81,6 +87,7 @@ function publicState() {
     cards: CARDS,
     enabled: state.enabled,
     order,
+    collapsed: Array.isArray(state.collapsed) ? state.collapsed : [...DEFAULT_COLLAPSED],
     undocked: Array.isArray(state.undocked) ? state.undocked : [],
     snapshots,
     updatePolicy: state.updatePolicy || "prompt",
@@ -154,6 +161,8 @@ async function fetchOne(id) {
       applyResult("cursor", await fetchers.fetchCursor());
     } else if (id === "chatGPT") {
       applyResult("chatGPT", await fetchers.fetchChatGPT());
+    } else if (id === "claude") {
+      applyResult("claude", await fetchers.fetchClaude());
     }
   } catch (e) {
     applyResult(id, { ok: false, error: String(e.message || e) });
@@ -207,6 +216,13 @@ async function fetchAll() {
           .catch((e) => applyResult("chatGPT", { ok: false, error: String(e.message || e) }))
       );
     }
+    if (en.has("claude")) {
+      jobs.push(
+        fetchers.fetchClaude()
+          .then((r) => applyResult("claude", r))
+          .catch((e) => applyResult("claude", { ok: false, error: String(e.message || e) }))
+      );
+    }
     await Promise.allSettled(jobs);
     saveState();
     broadcast();
@@ -246,6 +262,37 @@ function openLogin(id) {
       loginWin = null;
       fetchOne("agy");
       fetchOne("claudeGPT");
+      if (global.gc) { try { global.gc(); } catch {} }
+    });
+    return;
+  }
+
+  if (id === "claude") {
+    loginWin = new BrowserWindow({
+      width: 580,
+      height: 520,
+      title: "Sign in to Claude — BigUwidget",
+      autoHideMenuBar: true,
+      alwaysOnTop: true,
+      backgroundColor: "#141416",
+      webPreferences: {
+        preload: path.join(__dirname, "preload.js"),
+        partition: "persist:bigu",
+        contextIsolation: true,
+        nodeIntegration: false,
+        spellcheck: false,
+        devTools: false,
+      },
+    });
+    loginWin.loadFile(path.join(__dirname, "claude-login.html"));
+    loginWin.show();
+    loginWin.focus();
+    loginWin.on("closed", () => {
+      if (loginWin && !loginWin.isDestroyed()) {
+        loginWin.destroy();
+      }
+      loginWin = null;
+      fetchOne("claude");
       if (global.gc) { try { global.gc(); } catch {} }
     });
     return;
@@ -759,6 +806,7 @@ app.whenReady().then(() => {
   state = {
     enabled: Array.isArray(loaded.enabled) ? loaded.enabled : DEFAULT_ENABLED,
     order: Array.isArray(loaded.order) ? loaded.order : DEFAULT_ENABLED,
+    collapsed: Array.isArray(loaded.collapsed) ? loaded.collapsed : [...DEFAULT_COLLAPSED],
     undocked: Array.isArray(loaded.undocked) ? loaded.undocked : [],
     undockedBounds: loaded.undockedBounds && typeof loaded.undockedBounds === "object" ? loaded.undockedBounds : {},
     snapshots: snapshots,
@@ -902,6 +950,30 @@ ipcMain.handle("set-undocked", (_e, id, isUndocked) => {
   state.undocked = [...undockedSet];
   saveState();
   syncUndockedWindows();
+  broadcast();
+  return publicState();
+});
+ipcMain.handle("set-collapsed", (_e, id, isCollapsed) => {
+  const collapsedSet = new Set(Array.isArray(state.collapsed) ? state.collapsed : DEFAULT_COLLAPSED);
+  if (isCollapsed) {
+    collapsedSet.add(id);
+  } else {
+    collapsedSet.delete(id);
+  }
+  state.collapsed = [...collapsedSet];
+  saveState();
+  broadcast();
+  return publicState();
+});
+ipcMain.handle("toggle-collapse", (_e, id) => {
+  const collapsedSet = new Set(Array.isArray(state.collapsed) ? state.collapsed : DEFAULT_COLLAPSED);
+  if (collapsedSet.has(id)) {
+    collapsedSet.delete(id);
+  } else {
+    collapsedSet.add(id);
+  }
+  state.collapsed = [...collapsedSet];
+  saveState();
   broadcast();
   return publicState();
 });

@@ -80,7 +80,7 @@ function renderSettings() {
       <div class="space"></div>
       <button class="btn no-drag" data-act="close" title="Close" style="font-size: 14px;">✕</button>
     </div>
-    <div class="shelp">Toggle cards. ChatGPT is opt-in. Sign in after enabling.</div>
+    <div class="shelp">Toggle cards. ChatGPT and Claude can be enabled and configured below.</div>
   `;
 
   const undockedSet = new Set(Array.isArray(state.undocked) ? state.undocked : []);

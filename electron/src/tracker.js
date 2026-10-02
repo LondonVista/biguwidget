@@ -7,20 +7,35 @@ function getServiceDir(userDataPath, serviceId) {
   return dir;
 }
 
+function localDateKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function parseLocalDate(key) {
+  if (!key) return null;
+  const parts = String(key).split("-").map((p) => parseInt(p, 10));
+  if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) {
+    return new Date(key);
+  }
+  return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+}
+
 function isResetWeekday(keyOrDate, resetDate) {
   if (!resetDate) return false;
   try {
     let d;
     if (typeof keyOrDate === "string") {
-      d = new Date(keyOrDate + "T12:00:00Z");
+      d = parseLocalDate(keyOrDate);
     } else if (keyOrDate instanceof Date) {
-      const key = keyOrDate.toISOString().slice(0, 10);
-      d = new Date(key + "T12:00:00Z");
+      d = keyOrDate;
     } else {
       return false;
     }
     const r = new Date(resetDate);
-    return d.getUTCDay() === r.getUTCDay();
+    return d.getDay() === r.getDay();
   } catch {
     return false;
   }
@@ -75,9 +90,9 @@ function updateDailyUsage(dir, totalPercent, nowTs, resetsAt) {
   let map = loadJson(dailyPath, {}) || {};
 
   const now = new Date(nowTs * 1000);
-  const todayKey = now.toISOString().slice(0, 10);
-  const yesterday = new Date(now.getTime() - 86400000);
-  const yesterdayKey = yesterday.toISOString().slice(0, 10);
+  const todayKey = localDateKey(now);
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const yesterdayKey = localDateKey(yesterday);
 
   let entry = map[todayKey] || {};
   const yesterdayClose = map[yesterdayKey]?.close;
@@ -114,9 +129,9 @@ function effectiveAccumulated(key, map, resetsAt) {
 
   const open = entry.open || 0;
   const close = entry.close || 0;
-  const d = new Date(key + "T12:00:00Z");
-  const prevD = new Date(d.getTime() - 86400000);
-  const prevKey = prevD.toISOString().slice(0, 10);
+  const d = parseLocalDate(key);
+  const prevD = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1);
+  const prevKey = localDateKey(prevD);
   const prevClose = map[prevKey]?.close;
 
   if (prevClose != null && Math.abs(acc - prevClose) < 1.5 && close > 10 && open < 0.5) {
@@ -138,21 +153,14 @@ function usedPercent(key, map, currentTotal, isToday, resetsAt) {
   // correct — the quota actually restarted — so skip the substitution.
   const isReset = isResetWeekday(key, resetsAt ? new Date(resetsAt) : null);
   if (!isReset && effectiveOpen === 0 && bonus < 0.5) {
-    const d = new Date(key + "T12:00:00Z");
-    const prevD = new Date(d.getTime() - 86400000);
-    const prevKey = prevD.toISOString().slice(0, 10);
+    const d = parseLocalDate(key);
+    const prevD = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1);
+    const prevKey = localDateKey(prevD);
     if (map[prevKey]?.close > 0) {
       effectiveOpen = map[prevKey].close;
     }
   }
   return Math.max(0, close - effectiveOpen);
-}
-
-function localDateKey(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }
 
 function getDaysForDisplay(dir, currentTotal, resetsAt, centerToday = true) {

@@ -32,8 +32,8 @@ Unofficial desktop dashboard. Not affiliated with Google, xAI, OpenAI, Anthropic
 | Platform | Version | Release |
 |---|---|---|
 | **Mac** (native Swift) | **1.2.10** | [v1.2.10](https://github.com/LondonVista/biguwidget/releases/tag/v1.2.10) |
-| **Linux** | **1.2.3** | [v1.2.3](https://github.com/LondonVista/biguwidget/releases/tag/v1.2.3) |
-| **Windows** | **1.2.3** | [v1.2.3](https://github.com/LondonVista/biguwidget/releases/tag/v1.2.3) |
+| **Linux** | **1.2.11** | [v1.2.11](https://github.com/LondonVista/biguwidget/releases/tag/v1.2.11) |
+| **Windows** | **1.2.11** | [v1.2.11](https://github.com/LondonVista/biguwidget/releases/tag/v1.2.11) |
 
 ## Download
 
@@ -42,8 +42,8 @@ Latest release: **[v1.2.10](https://github.com/LondonVista/biguwidget/releases/l
 | OS | Status | File |
 |---|---|---|
 | **Mac** | Native App (Recommended) | [BigUwidget-1.2.10-Mac.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.2.10/BigUwidget-1.2.10-Mac.zip) |
-| **Linux** | Tested & Maintained | [BigUwidget-1.2.3-Linux.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.2.3-Linux.zip) |
-| **Windows** | Experimental (Untested) | [BigUwidget-1.2.3-Windows.zip](https://github.com/LondonVista/biguwidget/releases/latest/download/BigUwidget-1.2.3-Windows.zip) |
+| **Linux** | Tested & Maintained | [BigUwidget-1.2.11-Linux.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.2.11/BigUwidget-1.2.11-Linux.zip) |
+| **Windows** | Experimental (Untested) | [BigUwidget-1.2.11-Windows.zip](https://github.com/LondonVista/biguwidget/releases/download/v1.2.11/BigUwidget-1.2.11-Windows.zip) |
 
 - **Mac**: open the DMG / zip and drag `BigUwidget` onto **Applications** (or run `Install.command`).
 - **Linux**: Node.js 20+, then `./Start.sh`.

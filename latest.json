@@ -1,9 +1,9 @@
 {
-  "version": "1.2.9",
-  "notes": "BigUwidget 1.2.9: New app identifier (com.londonvista.biguwidget). Settings and sign-ins carry over automatically on first launch.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.9",
+  "version": "1.2.10",
+  "notes": "BigUwidget 1.2.10: The Claude card recovers within a few minutes after a restart or sleep when Anthropic briefly rate-limits it, and says it is retrying.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.10",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.9/BigUwidget-1.2.9-Mac.zip",
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.10/BigUwidget-1.2.10-Mac.zip",
     "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.3/BigUwidget-1.2.3-Linux.zip",
     "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.3/BigUwidget-1.2.3-Windows.zip"
   }

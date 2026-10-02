@@ -1149,10 +1149,18 @@ extension LiveServiceFetcher {
                         claudeLastSuccess = Date()
                         claudeInterval = claudeBaseInterval
                     case .failed("Rate limited"):
-                        claudeInterval = min(claudeMaxInterval, claudeInterval * 2)
                         let last = claudeLastSuccess ?? claudeCachedFetchDate()
                         let age = last.map { Date().timeIntervalSince($0) } ?? .infinity
-                        if age < claudeStaleAfter { shown = .success }
+                        if age < claudeStaleAfter {
+                            // Fresh numbers on screen: back off and stay quiet.
+                            claudeInterval = min(claudeMaxInterval, claudeInterval * 2)
+                            shown = .success
+                        } else {
+                            // Stale (e.g. after a restart or sleep): the limit clears in
+                            // about 2 min, so keep the base pace instead of doubling.
+                            claudeInterval = claudeBaseInterval
+                            shown = .failed("Rate limited, retrying")
+                        }
                     default:
                         break
                     }

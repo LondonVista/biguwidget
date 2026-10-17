@@ -64,7 +64,7 @@ enum KeychainTokenHelper {
         var req = URLRequest(url: tokenURL)
         req.httpMethod = "POST"
         req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        req.setValue("Antigravity/1.0", forHTTPHeaderField: "User-Agent")
+        req.setValue(LiveServiceFetcher.agyUserAgent, forHTTPHeaderField: "User-Agent")
 
         var comp = URLComponents()
         comp.queryItems = [
@@ -274,6 +274,8 @@ enum LiveServiceFetcher {
         }
     }
 
+    static let agyUserAgent = "antigravity/cli/1.4.0 (aidev_client; os_type=darwin; arch=arm64; cl=1000494485; auth_method=consumer)"
+
     private static let agyEndpoints = [
         "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary",
         "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary"
@@ -343,7 +345,7 @@ enum LiveServiceFetcher {
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        req.setValue("Antigravity/1.0", forHTTPHeaderField: "User-Agent")
+        req.setValue(agyUserAgent, forHTTPHeaderField: "User-Agent")
         req.httpBody = Data("{}".utf8)
 
         session.dataTask(with: req) { data, response, error in
@@ -384,6 +386,7 @@ enum LiveServiceFetcher {
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue(agyUserAgent, forHTTPHeaderField: "User-Agent")
         if !cookieHeader.isEmpty {
             req.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
         }
@@ -417,6 +420,8 @@ enum LiveServiceFetcher {
         var geminiReset: Double?
         var gemini5h: Double?
         var gemini5hReset: Double?
+        var argonWeekly: Double?
+        var argonReset: Double?
         var claudeWeekly: Double?
         var claudeReset: Double?
         var claude5h: Double?
@@ -431,6 +436,7 @@ enum LiveServiceFetcher {
             let buckets = g["buckets"] as? [[String: Any]] ?? []
             for b in buckets {
                 let window = b["window"] as? String ?? ""
+                let bucketId = (b["bucketId"] as? String ?? "").lowercased()
                 // A missing fraction is not "fully remaining". Saving that as 0% used
                 // makes the next real reading look like one giant prompt.
                 guard let rem = (b["remainingFraction"] as? NSNumber)?.doubleValue else { continue }
@@ -438,7 +444,13 @@ enum LiveServiceFetcher {
                 let rTime = b["resetTime"] as? String ?? ""
                 let dTs = (iso.date(from: rTime) ?? isoFallback.date(from: rTime))?.timeIntervalSince1970
 
-                if gName.contains("gemini") {
+                let isArgon = gName.contains("argon") || bucketId.contains("argon")
+                if isArgon {
+                    if window == "weekly" {
+                        argonWeekly = used
+                        argonReset = dTs
+                    }
+                } else if gName.contains("gemini") {
                     if window == "weekly" {
                         geminiWeekly = used
                         geminiReset = dTs
@@ -456,6 +468,11 @@ enum LiveServiceFetcher {
                     }
                 }
             }
+        }
+
+        if geminiWeekly == nil, let argonWeekly {
+            geminiWeekly = argonWeekly
+            geminiReset = argonReset
         }
 
         let nowTs = Date().timeIntervalSince1970
@@ -478,7 +495,9 @@ enum LiveServiceFetcher {
                 maxStep: 30.0,
                 prevTotalOverride: nil,
                 prepaidBalance: prepaidBalance,
-                onDemandEligible: onDemandEligible
+                onDemandEligible: onDemandEligible,
+                argonPercent: argonWeekly,
+                argonResetsAt: argonReset
             )
         }
 
@@ -762,7 +781,9 @@ enum LiveServiceFetcher {
         prepaidBalance: Double? = nil,
         onDemandEligible: Bool = false,
         onDemandUsed: Double? = nil,
-        officialPercent: Double? = nil
+        officialPercent: Double? = nil,
+        argonPercent: Double? = nil,
+        argonResetsAt: Double? = nil
     ) {
         let lastUsageURL = dir.appendingPathComponent("last-usage.json")
         let deltasURL = dir.appendingPathComponent("session-deltas.json")
@@ -814,6 +835,11 @@ enum LiveServiceFetcher {
         if onDemandEligible { dict["onDemandEligible"] = true }
         if let odu = onDemandUsed { dict["onDemandUsed"] = odu }
         if let op = officialPercent { dict["officialPercent"] = op }
+        if let ap = argonPercent { dict["argonPercent"] = ap }
+        if let ar = argonResetsAt {
+            dict["argonResetsAt"] = ar
+            dict["argonResetsLabel"] = UsageParser.formatReset(Date(timeIntervalSince1970: ar))
+        }
         if let uData = try? JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted]) {
             try? uData.write(to: lastUsageURL, options: .atomic)
         }
@@ -1127,10 +1153,22 @@ extension LiveServiceFetcher {
     private static var claudeLastAttempt: Date?
     private static var claudeLastSuccess: Date?
     private static var claudeLastOutcome: FetchOutcome = .success
+    private static let claudeTokenExpired = FetchOutcome.failed("Sign-in expired, open Claude Code")
+
+    /// Local diagnostics: time and HTTP status of each check, never the token.
+    static func logClaudeCheck(_ line: String) {
+        let url = serviceDir("ClaudeUsageWidget").appendingPathComponent("fetch-log.txt")
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        var lines = ((try? String(contentsOf: url, encoding: .utf8)) ?? "").split(separator: "\n").map(String.init)
+        lines.append("\(df.string(from: Date()))  \(line)")
+        try? lines.suffix(300).joined(separator: "\n").appending("\n").write(to: url, atomically: true, encoding: .utf8)
+    }
 
     static func fetchClaude(completion: ((FetchOutcome) -> Void)? = nil) {
         // Signed out is not a rate-limit signal: let "Check again" retry right after /login.
-        if claudeLastOutcome != .needsLogin,
+        if claudeLastOutcome != .needsLogin, claudeLastOutcome != claudeTokenExpired,
            let last = claudeLastAttempt, Date().timeIntervalSince(last) < claudeInterval {
             completion?(claudeLastOutcome)
             return
@@ -1142,6 +1180,15 @@ extension LiveServiceFetcher {
                 guard let creds else {
                     claudeLastOutcome = .needsLogin
                     completion?(.needsLogin)
+                    return
+                }
+                // The token lives ~8 h and only Claude Code renews it (we never do: that
+                // would sign Claude Code out). Overnight it expires; say so instead of
+                // sending requests that cannot work.
+                if let exp = creds.expiresAt, exp < Date() {
+                    logClaudeCheck("token expired at \(exp)")
+                    claudeLastOutcome = claudeTokenExpired
+                    completion?(claudeTokenExpired)
                     return
                 }
                 fetchClaudeUsage(token: creds.token, plan: creds.plan) { outcome in
@@ -1183,13 +1230,14 @@ extension LiveServiceFetcher {
 
     /// Read-only. Claude Code owns this token and refreshes it itself; refreshing here
     /// would rotate the refresh token and sign Claude Code out.
-    private static func readClaudeCodeCredentials() -> (token: String, plan: String)? {
-        func parse(_ data: Data) -> (token: String, plan: String)? {
+    private static func readClaudeCodeCredentials() -> (token: String, plan: String, expiresAt: Date?)? {
+        func parse(_ data: Data) -> (token: String, plan: String, expiresAt: Date?)? {
             guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let oauth = obj["claudeAiOauth"] as? [String: Any],
                   let token = oauth["accessToken"] as? String, !token.isEmpty else { return nil }
             let sub = (oauth["subscriptionType"] as? String) ?? ""
-            return (token, sub.isEmpty ? "Claude" : "Claude \(sub.capitalized)")
+            let expiresAt = (oauth["expiresAt"] as? NSNumber).map { Date(timeIntervalSince1970: $0.doubleValue / 1000) }
+            return (token, sub.isEmpty ? "Claude" : "Claude \(sub.capitalized)", expiresAt)
         }
 
         let p = Process()
@@ -1234,6 +1282,7 @@ extension LiveServiceFetcher {
         session.dataTask(with: req) { data, response, error in
             DispatchQueue.main.async {
                 let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                logClaudeCheck(status == 0 ? "network error" : "HTTP \(status)")
                 if status == 401 || status == 403 {
                     completion(.needsLogin)
                     return

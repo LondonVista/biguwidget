@@ -524,8 +524,30 @@ final class SingleServiceStore: ObservableObject {
         var total = (d["totalPercent"] as? NSNumber)?.doubleValue ?? 0.0
         var official = (d["officialPercent"] as? NSNumber)?.doubleValue
         var rDate = (d["resetsAt"] as? NSNumber).map { Date(timeIntervalSince1970: $0.doubleValue) }
-        if service == .agy, let gemini = quotaGroup(namedContains: "gemini") {
+        var argonUsed = (d["argonPercent"] as? NSNumber)?.doubleValue
+        var argonReset = (d["argonResetsAt"] as? NSNumber).map { Date(timeIntervalSince1970: $0.doubleValue) }
+        var argonLabel = d["argonResetsLabel"] as? String
+
+        if service == .agy, let gemini = quotaGroup(namedContains: "gemini", excluding: "argon") {
             applyQuotaGroup(gemini, total: &total, resetsAt: &rDate, fiveUsed: &fiveUsed, fiveReset: &fiveReset, slices: &slices, sliceName: "Gemini")
+        }
+        if service == .agy, argonUsed == nil, let argon = quotaGroup(namedContains: "argon") {
+            let buckets = argon["buckets"] as? [[String: Any]] ?? []
+            let iso = ISO8601DateFormatter()
+            iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let isoFallback = ISO8601DateFormatter()
+            for b in buckets {
+                let window = b["window"] as? String ?? ""
+                guard let rem = (b["remainingFraction"] as? NSNumber)?.doubleValue else { continue }
+                let used = max(0, min(100, (1.0 - rem) * 100.0))
+                let rTime = b["resetTime"] as? String ?? ""
+                let resetDate = iso.date(from: rTime) ?? isoFallback.date(from: rTime)
+                if window == "weekly" {
+                    argonUsed = used
+                    argonReset = resetDate
+                    if let rd = resetDate { argonLabel = UsageParser.formatReset(rd) }
+                }
+            }
         }
         if service == .claudeGPT, slices.contains(where: { $0.name.contains("Claude") }) == false,
            let claude = quotaGroup(namedContains: "claude") ?? quotaGroup(namedContains: "gpt") {
@@ -548,6 +570,11 @@ final class SingleServiceStore: ObservableObject {
             fiveUsed = 0
             fiveReset = nil
             fiveLabelShown = nil
+        }
+        if let ar = argonReset, ar <= Date() {
+            argonUsed = 0
+            argonReset = nil
+            argonLabel = "Reset — waiting for new data"
         }
 
         var recentDeltas: [RecentDeltaItem] = []
@@ -590,17 +617,24 @@ final class SingleServiceStore: ObservableObject {
             onDemandEligible: onDemandEligible,
             onDemandUsed: onDemandUsed,
             rolledOver: rolledOver,
-            officialPercent: official
+            officialPercent: official,
+            argonPercent: argonUsed,
+            argonResetsAt: argonReset,
+            argonResetsLabel: argonLabel
         )
     }
 
-    private func quotaGroup(namedContains needle: String) -> [String: Any]? {
+    private func quotaGroup(namedContains needle: String, excluding: String? = nil) -> [String: Any]? {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let rawURL = appSupport.appendingPathComponent("AGYusageWidget/last-raw.json")
         guard let rawData = try? Data(contentsOf: rawURL),
               let rawJson = try? JSONSerialization.jsonObject(with: rawData) as? [String: Any],
               let groups = rawJson["groups"] as? [[String: Any]] else { return nil }
-        return groups.first(where: { ($0["displayName"] as? String ?? "").lowercased().contains(needle) })
+        return groups.first(where: { g in
+            let name = (g["displayName"] as? String ?? "").lowercased()
+            if let exc = excluding, name.contains(exc) { return false }
+            return name.contains(needle)
+        })
     }
 
     private func applyQuotaGroup(

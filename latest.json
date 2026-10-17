@@ -1,14 +1,14 @@
 {
-  "version": "1.2.12",
+  "version": "1.2.13",
   "versions": {
-    "darwin": "1.2.12",
+    "darwin": "1.2.13",
     "linux": "1.2.11",
     "win32": "1.2.11"
   },
-  "notes": "Mac 1.2.12: The Claude card estimates weekly usage between whole percents from the 5-hour window, so prompt bubbles and history show finer steps; prompt ages show hours with minutes and are easier to read. Linux & Windows 1.2.11: New Claude card, cards remember being collapsed, weekly resets match your local day, and update checks work again.",
-  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.12",
+  "notes": "Mac 1.2.13: Dedicated Gemini 4 Argon weekly limit tracking in the AGY section with separate quota meter, full countdown, and status pill; fixed 5-hour window text clipping. Linux & Windows 1.2.11: New Claude card, cards remember being collapsed, weekly resets match your local day, and update checks work again.",
+  "html_url": "https://github.com/LondonVista/biguwidget/releases/tag/v1.2.13",
   "downloads": {
-    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.12/BigUwidget-1.2.12-Mac.zip",
+    "darwin": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.13/BigUwidget-1.2.13-Mac.zip",
     "linux": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.11/BigUwidget-1.2.11-Linux.zip",
     "win32": "https://github.com/LondonVista/biguwidget/releases/download/v1.2.11/BigUwidget-1.2.11-Windows.zip"
   }

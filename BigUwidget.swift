@@ -7,8 +7,8 @@ import WebKit
 enum BigUwidgetConfig {
     /// Ko-fi / GitHub Sponsors / PayPal. Donate is hidden if this is nil.
     static let donateURL = URL(string: "https://ko-fi.com/london_vista")
-    static let feedbackURL = URL(string: "https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v1.2.12&body=%2A%2AOS%2A%2A%3A+macOS%0A%2A%2AVersion%2A%2A%3A+v1.2.12%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A")
-    static let appVersion = "1.2.12"
+    static let feedbackURL = URL(string: "https://github.com/LondonVista/biguwidget/issues/new?title=%5BFeedback%2FBug%5D+v1.2.13&body=%2A%2AOS%2A%2A%3A+macOS%0A%2A%2AVersion%2A%2A%3A+v1.2.13%0A%0A%2A%2ADescribe+the+issue+or+feedback%2A%2A%3A%0A")
+    static let appVersion = "1.2.13"
     static let updateFeedURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest/download/latest.json")
     static let githubReleasesURL = URL(string: "https://github.com/LondonVista/biguwidget/releases/latest")
     static let githubAPIURL = URL(string: "https://api.github.com/repos/LondonVista/biguwidget/releases/latest")
@@ -274,6 +274,9 @@ struct UsageSnapshot: Equatable {
     var rolledOver: Bool = false
     /// The provider's own whole-number reading when `totalPercent` is an estimate.
     var officialPercent: Double? = nil
+    var argonPercent: Double? = nil
+    var argonResetsAt: Date? = nil
+    var argonResetsLabel: String? = nil
 
     static func == (lhs: UsageSnapshot, rhs: UsageSnapshot) -> Bool {
         lhs.rolledOver == rhs.rolledOver &&
@@ -291,7 +294,10 @@ struct UsageSnapshot: Equatable {
         lhs.recentDeltas == rhs.recentDeltas &&
         lhs.prepaidBalance == rhs.prepaidBalance &&
         lhs.onDemandEligible == rhs.onDemandEligible &&
-        lhs.onDemandUsed == rhs.onDemandUsed
+        lhs.onDemandUsed == rhs.onDemandUsed &&
+        lhs.argonPercent == rhs.argonPercent &&
+        lhs.argonResetsAt == rhs.argonResetsAt &&
+        lhs.argonResetsLabel == rhs.argonResetsLabel
     }
 }
 
@@ -488,6 +494,13 @@ enum UsageParser {
         f.locale = Locale(identifier: "en_US")
         f.dateFormat = "EEE MMM d 'at' h:mm a"
         return "on \(f.string(from: date))"
+    }
+
+    static func formatResetShort(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US")
+        f.dateFormat = "EEE h:mm a"
+        return f.string(from: date)
     }
 
     /// Older than this, the "Refreshed …" label turns orange: the card is not updating.

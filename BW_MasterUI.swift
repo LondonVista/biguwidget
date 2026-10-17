@@ -755,6 +755,13 @@ struct ServiceCardView: View {
                                         .foregroundStyle(Color(hex: 0xFF8B82))
                                 }
                             }
+                            if subStore.service == .agy, let argon = snap.argonPercent {
+                                let remInt = max(0, min(100, 100 - Int(argon.rounded())))
+                                Text("· Ar: \(remInt)%")
+                                    .font(.system(size: 8.5, weight: .bold, design: .rounded))
+                                    .monospacedDigit()
+                                    .foregroundStyle(remInt == 0 ? Color.white.opacity(0.45) : (remInt < 25 ? Color(hex: 0xFFD60A) : Color.white.opacity(0.75)))
+                            }
                         }
                         .font(.system(size: 9.5, weight: .semibold))
                         .lineLimit(1)
@@ -824,11 +831,15 @@ struct ServiceCardView: View {
                                                 .monospacedDigit()
                                         }
                                     }
-                                    .fixedSize(horizontal: true, vertical: false)
+                                    // May shrink a little so wide delta labels never push
+                                    // the row past the card width (which shifts everything left).
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.75)
                                     Text(UsageParser.formatResetOn(reset))
                                         .font(.system(size: 8, weight: .medium))
                                         .foregroundStyle(Color.white.opacity(0.5))
-                                        .fixedSize(horizontal: true, vertical: false)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.75)
                                 } else {
                                     Text(snap.resetsLabel)
                                         .font(.system(size: 9, weight: .semibold))
@@ -840,6 +851,7 @@ struct ServiceCardView: View {
 
                             if !snap.recentDeltas.isEmpty {
                                 DeltasStackView(deltas: snap.recentDeltas, now: now, service: subStore.service, onOpenSessionHistory: onOpenSessionHistory)
+                                    .layoutPriority(1)
                             }
                         }
 
@@ -861,10 +873,10 @@ struct ServiceCardView: View {
                         }
 
                         if showsFive, let fivePct = snap.fiveHourPercent {
-                            let fiveScale: CGFloat = isWeekHidden ? 1.15 : 1.35
+                            let fiveScale: CGFloat = isWeekHidden ? 1.05 : 1.10
                             let fiveNum = "\(Int(fivePct.rounded()))%"
-                            HStack(spacing: 3.5) {
-                                HStack(spacing: 3) {
+                            HStack(spacing: 3) {
+                                HStack(spacing: 2.5) {
                                     Text("5h:")
                                         .foregroundStyle(Color.white.opacity(0.95))
                                     Text(fiveNum)
@@ -875,7 +887,7 @@ struct ServiceCardView: View {
                                                 .opacity(fiveBlip)
                                         }
                                     Text("used")
-                                        .foregroundStyle(Color.white.opacity(0.95))
+                                        .foregroundStyle(Color.white.opacity(0.85))
                                 }
                                 .font(.system(size: 10.0 * fiveScale, weight: .bold, design: .rounded))
                                 .monospacedDigit()
@@ -890,12 +902,12 @@ struct ServiceCardView: View {
                                         .foregroundStyle(fAccent)
                                         .monospacedDigit()
                                 }
-                                Spacer(minLength: 4)
+                                Spacer(minLength: 2)
                                 if isWeekHidden { weekStripToggle }
                             }
                             .lineLimit(1)
-                            .minimumScaleFactor(0.70)
-                            .padding(.vertical, 2.5)
+                            .minimumScaleFactor(0.80)
+                            .padding(.vertical, 2.0)
                             .onAppear { if lastFivePct == nil { lastFivePct = fivePct } }
                             .onChange(of: fivePct) { newValue in
                                 if let last = lastFivePct, newValue + 0.05 < last {
@@ -912,6 +924,10 @@ struct ServiceCardView: View {
                             }
                         }
 
+                        if subStore.service == .agy, let argonPct = snap.argonPercent {
+                            argonQuotaView(argonPct: argonPct, snap: snap, now: now)
+                        }
+
                         if !isWeekHidden {
                             let weekDays = subStore.daysForDisplay(now: wallNow, resetsAt: snap.resetsAt, centerToday: settings.centerTodayInWeekStrip)
                             WeekStripView(
@@ -922,11 +938,11 @@ struct ServiceCardView: View {
                                 showProjectedFutureDays: settings.showProjectedFutureDays,
                                 onOpenCalendar: onOpenCalendar
                             )
-                                .padding(.top, showsFive ? 0 : 4)
+                                .padding(.top, (showsFive || snap.argonPercent != nil) ? 0 : 4)
                                 .padding(.horizontal, 4)
                                 .overlay(alignment: .topTrailing) {
                                     weekStripToggle
-                                        .offset(x: -5, y: showsFive ? -14 : -9)
+                                        .offset(x: -5, y: -9)
                                 }
                         }
                         VStack(alignment: .leading, spacing: 2) {
@@ -1028,6 +1044,124 @@ struct ServiceCardView: View {
         }
         .buttonStyle(.plain)
         .help(isWeekHidden ? "Show 7-day strip" : "Hide 7-day strip")
+    }
+
+    @ViewBuilder
+    private func argonQuotaView(argonPct: Double, snap: UsageSnapshot, now: Date) -> some View {
+        let remPct = max(0, min(100, 100.0 - argonPct))
+        let remInt = Int(remPct.rounded())
+        let argonNum = "\(Int(argonPct.rounded()))%"
+        let isDepleted = remInt == 0
+
+        let badgeTextColor: Color = isDepleted
+            ? Color.white.opacity(0.45)
+            : (remInt < 25 ? Color(hex: 0xFFD60A) : Color(hex: 0x30D158))
+        let badgeBgColor: Color = isDepleted
+            ? Color.white.opacity(0.06)
+            : (remInt < 25 ? Color(hex: 0xFFD60A).opacity(0.18) : Color(hex: 0x30D158).opacity(0.18))
+        let badgeStrokeColor: Color = isDepleted
+            ? Color.white.opacity(0.14)
+            : (remInt < 25 ? Color(hex: 0xFFD60A).opacity(0.35) : Color(hex: 0x30D158).opacity(0.35))
+
+        VStack(alignment: .leading, spacing: 3) {
+            // Line 1: Normal white "Argon: X% used" and grayed-out "[ 0% left ]" pill
+            HStack(alignment: .center) {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text("Argon:")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.white.opacity(0.92))
+                    Text(argonNum)
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(isDepleted ? Color.white.opacity(0.65) : Color.white.opacity(0.92))
+                        .monospacedDigit()
+                    Text("used")
+                        .font(.system(size: 9.5, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.65))
+                }
+
+                Spacer(minLength: 4)
+
+                Text("\(remInt)% left")
+                    .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(badgeTextColor)
+                    .padding(.horizontal, 5.5)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(badgeBgColor)
+                            .overlay(Capsule().stroke(badgeStrokeColor, lineWidth: 0.5))
+                    )
+            }
+
+            // Line 2: Progress bar (grayed out when 0% left)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.white.opacity(0.10))
+                    Capsule()
+                        .fill(
+                            isDepleted
+                                ? LinearGradient(colors: [Color.white.opacity(0.20), Color.white.opacity(0.25)], startPoint: .leading, endPoint: .trailing)
+                                : (remInt < 25
+                                    ? LinearGradient(colors: [Color(hex: 0xFF9F0A), Color(hex: 0xFFD60A)], startPoint: .leading, endPoint: .trailing)
+                                    : LinearGradient(colors: [Color(hex: 0x4285F4), Color(hex: 0x24C1E0)], startPoint: .leading, endPoint: .trailing))
+                        )
+                        .frame(width: max(0, min(geo.size.width, geo.size.width * CGFloat(argonPct / 100.0))))
+                }
+            }
+            .frame(height: 3)
+
+            // Line 3: Reset countdown showing days, total hours, and reset time
+            if let argonReset = snap.argonResetsAt {
+                let totalMin = max(0, Int(argonReset.timeIntervalSince(now) / 60))
+                let totalHrs = totalMin / 60
+                let days = totalMin / (24 * 60)
+                let hrs = (totalMin % (24 * 60)) / 60
+                let mins = totalMin % 60
+
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text(totalMin == 0 ? "Resets" : "Resets in")
+                        .font(.system(size: 9.0, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.55))
+
+                    if days > 0 {
+                        Text("\(days)d \(hrs)h")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color.white.opacity(0.85))
+                            .monospacedDigit()
+                        Text("(\(totalHrs)h \(mins)m)")
+                            .font(.system(size: 9.0, weight: .medium, design: .rounded))
+                            .foregroundStyle(Color.white.opacity(0.50))
+                            .monospacedDigit()
+                    } else if totalHrs > 0 {
+                        Text("\(totalHrs)h \(mins)m")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color.white.opacity(0.85))
+                            .monospacedDigit()
+                    } else if totalMin > 0 {
+                        Text("\(mins)m")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color.white.opacity(0.85))
+                            .monospacedDigit()
+                    } else {
+                        Text("now")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color.white.opacity(0.85))
+                    }
+
+                    Spacer(minLength: 2)
+
+                    Text(UsageParser.formatResetShort(argonReset))
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.40))
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+            }
+        }
+        .padding(.vertical, 3)
+        .help("Gemini 4 Argon Weekly Limit: \(Int(argonPct.rounded()))% used (\(remInt)% left). Separate quota for Argon on Pro plans.")
     }
 }
 
